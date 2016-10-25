@@ -16,8 +16,8 @@ BEGIN
 	SET transaction isolation level read UNCOMMITTED
 
     -- Insert statements for procedure here
-	   IF OBJECT_ID('[dwh].[data_task_lists]') IS NOT NULL
-            DROP TABLE dwh.data_task_lists; 
+	   IF OBJECT_ID('[dbo].[data_task_lists]') IS NOT NULL
+            DROP TABLE dbo.data_task_lists; 
 
        ; WITH    TasksRaw1
                   AS ( SELECT   ut1.created_by AS task_from_user_id -- who orginated the task
@@ -59,10 +59,8 @@ BEGIN
 		        --per.person_id ,
 				userto.user_key AS task_to_user_key,
 				userfrom.user_key AS task_from_user_key,
-				CASE WHEN t.person_id IS NOT NULL THEN 
-					(SELECT TOP 1 per.[med_rec_nbr] FROM dwh.data_person_dp_month per WHERE per.person_id=t.person_id)
-				ELSE ''
-				END AS mec_rec_nbr,
+				COALESCE((SELECT TOP 1 per.[med_rec_nbr] FROM dbo.data_person_cur per WHERE per.person_id=t.person_id),'')
+					AS mec_rec_nbr,
 			  --  data_appointment.enc_appt_key,
                -- t.location_id ,
                -- per.per_mon_id ,
@@ -136,11 +134,11 @@ BEGIN
                 END AS Request_Type
 				,CASE WHEN t.task_completed=1 THEN 0 ELSE 1 END AS [Nbr of active Inbox],
 				prov.provider_key
-      INTO    dwh.data_task_lists
+      INTO    dbo.data_task_lists
         FROM    TasksRaw1 t
-			LEFT OUTER JOIN dwh.data_user_v2 userto WITH (NOLOCK) ON t.task_to_user_id = userto.user_id
-			LEFT OUTER JOIN dwh.data_user_v2 userfrom WITH (NOLOCK) ON t.task_from_user_id = userfrom.user_id
-			LEFT OUTER JOIN dwh.data_provider prov WITH (NOLOCK) ON t.task_to_user_id = prov.user_id
+			LEFT OUTER JOIN dbo.data_user_v2 userto WITH (NOLOCK) ON t.task_to_user_id = userto.user_id
+			LEFT OUTER JOIN dbo.data_user_v2 userfrom WITH (NOLOCK) ON t.task_from_user_id = userfrom.user_id
+			LEFT OUTER JOIN dbo.data_provider prov WITH (NOLOCK) ON t.task_to_user_id = prov.user_id
 			--LEFT OUTER JOIN [dwh].[data_appointment] data_appointment WITH (NOLOCK) ON data_appointment.[enc_id] = t.pat_enc_id
                                                         
  

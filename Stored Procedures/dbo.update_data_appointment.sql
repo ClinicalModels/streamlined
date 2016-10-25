@@ -14,13 +14,12 @@ AS
         SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 
+        IF OBJECT_ID('dbo.data_appointment') IS NOT NULL
+            DROP TABLE dbo.data_appointment;
 
-        IF OBJECT_ID('dwh.data_appointment') IS NOT NULL
-            DROP TABLE dwh.data_appointment;
 
-
-        IF OBJECT_ID('dwh.data_enc_appt_status') IS NOT NULL
-            DROP TABLE dwh.data_enc_appt_status;
+        IF OBJECT_ID('dbo.data_enc_appt_status') IS NOT NULL
+            DROP TABLE dbo.data_enc_appt_status;
 
         IF OBJECT_ID('tempdb..#ar') IS NOT NULL
             DROP TABLE #ar;
@@ -40,14 +39,14 @@ AS
             DROP TABLE #temp_dim;
 
 
-        IF OBJECT_ID('dwh.data_event') IS NOT NULL
-            DROP TABLE dwh.data_event;
+        IF OBJECT_ID('dbo.data_event') IS NOT NULL
+            DROP TABLE dbo.data_event;
 
 
         SELECT  IDENTITY( INT, 1, 1 ) AS event_key ,
                 e.event_id ,
                 e.event AS event_name
-        INTO    dwh.data_event
+        INTO    dbo.data_event
         FROM    [10.183.0.94].NGProd.dbo.[events] e;
 
 /*
@@ -107,11 +106,7 @@ link between appts and slots based on
               [enc_person_id] [UNIQUEIDENTIFIER] NULL ,
 			  [person_key] [INT] NULL,
               [enc_id] [UNIQUEIDENTIFIER] NULL ,
-			  [enc_id_ecw] [INT] NULL,
               [enc_nbr] [NUMERIC](12, 0) NULL ,
-              [appt_person_id_ecw] [INT] NULL,
-              [ecw_provider_id] [INT] NULL,
-              [ecw_location_id] [INT] NULL,
               [enc_slot_type] [VARCHAR](40) NULL ,
               [appt_nbr] [NUMERIC](12, 0) NULL ,
               [interval] [INT] NULL ,
@@ -143,9 +138,6 @@ link between appts and slots based on
               [pay1_finclass] [VARCHAR](110) NULL,
               [pay2_finclass] [VARCHAR](110) NULL,
               [pay3_finclass] [VARCHAR](110) NULL,
-			  [diagnosis_1] [VARCHAR](266) NULL, 
-			  [diagnosis_2] [VARCHAR](266) NULL, 
-			  [diagnosis_3] [VARCHAR](266) NULL, 
               [ng_data] [INT] NULL --Necessary flag to determine whether pulling from NG or ECW tables
             );
 
@@ -210,7 +202,7 @@ link between appts and slots based on
                         a.person_id AS appt_person_id ,
                         enc.person_id AS enc_person_id ,
 						(SELECT TOP 1 nd.person_key
-							FROM dwh.data_person_nd_month nd
+							FROM dbo.data_person_nd_month nd
 							WHERE nd.person_id=per.person_Id)
 						AS person_key,
                         CASE WHEN a.DQ_enc_id = 1
@@ -256,91 +248,92 @@ link between appts and slots based on
                 WHERE   a.appt_date >= @dt_start;
 
 
-  --This insert adds past encounters not linked to an appointment
-        INSERT  INTO #appt_enc
-                ( appt_date ,
-                  slot_time ,
-                  appt_type ,
-                  resource_id ,
-                  appt_loc_id ,
-                  appt_person_id ,
-                  enc_person_id ,
-				  person_key,
-                  enc_id ,
-                  enc_nbr ,
-                  enc_slot_type ,
-                  appt_nbr ,
-                  interval ,
-                  duration ,
-                  slot_count ,
-                  enc_loc_id ,
-                  enc_date ,
-                  enc_rendering_id ,
-                  appt_status ,
-                  appt_kept_ind ,
-                  cancel_ind ,
-                  cancel_reason ,
-                  delete_ind ,
-                  resched_ind ,
-                  checkin_datetime ,
-                  enc_status ,
-                  user_enc_created ,
-                  pcp_id ,
-                  billable_ind ,
-                  event_id ,
-                  event_name ,
-                  appt_create_time ,
-                  appt_modify_time ,
-                  user_appt_created ,
-                  d.ng_data
-                )
+  ----This insert adds past encounters not linked to an appointment
+  --      INSERT  INTO #appt_enc
+  --              ( appt_date ,
+  --                slot_time ,
+  --                appt_type ,
+  --                resource_id ,
+  --                appt_loc_id ,
+  --                appt_person_id ,
+  --                enc_person_id ,
+		--		  person_key,
+  --                enc_id ,
+  --                enc_nbr ,
+  --                enc_slot_type ,
+  --                appt_nbr ,
+  --                interval ,
+  --                duration ,
+  --                slot_count ,
+  --                enc_loc_id ,
+  --                enc_date ,
+  --                enc_rendering_id ,
+  --                appt_status ,
+  --                appt_kept_ind ,
+  --                cancel_ind ,
+  --                cancel_reason ,
+  --                delete_ind ,
+  --                resched_ind ,
+  --                checkin_datetime ,
+  --                enc_status ,
+  --                user_enc_created ,
+  --                pcp_id ,
+  --                billable_ind ,
+  --                event_id ,
+  --                event_name ,
+  --                appt_create_time ,
+  --                appt_modify_time ,
+  --                user_appt_created ,
+  --                d.ng_data
+  --              )
 
-               --There is a bug in SQL server 2012 for linked servers that requires CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) as workaround for NULL as uniqueindetifier
-               --See this post http://sqlwithmanoj.com/2015/03/27/sqlncli11-for-linked-server-xyz-returned-message-requested-conversion-is-not-supported-sql-server-2012-upgrade-behavior-changes/
-                SELECT  
-                        CAST(NULL AS DATE) AS appt_date ,
-                        CAST(NULL AS CHAR(4)) AS slot_time ,
-                        CAST(NULL AS CHAR(1)) AS appt_type ,
-                        CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS resource_id ,
-                        CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_loc_id ,
-                        CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_person_id ,
-                        CAST(enc.person_id AS UNIQUEIDENTIFIER) AS enc_person_id ,
-						(SELECT TOP 1 nd.person_key
-							FROM dwh.data_person_nd_month nd
-							WHERE nd.person_id=per.person_Id)
-						AS person_key,
-                        CAST(enc.enc_id AS UNIQUEIDENTIFIER) AS enc_id ,
-                        CAST(enc.enc_nbr AS NUMERIC(12, 0)) AS enc_nbr ,
-                        CAST('Encounter no appt' AS VARCHAR(20)) AS enc_slot_type ,
-                        CAST(NULL AS NUMERIC(12, 0)) AS appt_nbr ,
-                        CAST(NULL AS INT) AS interval ,
-                        CAST(NULL AS INT) AS duration ,
-                        CAST(NULL AS INT) AS slot_count ,
-                        CAST(enc.location_id AS UNIQUEIDENTIFIER) AS enc_loc_id ,
-                        CAST(enc.billable_timestamp AS DATE) AS enc_date ,
-                        CAST(enc.rendering_provider_id AS UNIQUEIDENTIFIER) AS enc_rendering_id ,
-                        CAST (NULL AS CHAR(1)) AS appt_status ,
-                        CAST (NULL AS CHAR(1)) AS appt_kept_ind ,
-                        CAST (NULL AS CHAR(1)) AS cancel_ind ,
-                        CAST (NULL AS CHAR(1)) AS delete_ind ,
-                        CAST(a.cancel_reason AS UNIQUEIDENTIFIER) AS cancel_reason ,
-                        CAST (NULL AS CHAR(1)) AS resched_ind ,
-                        CAST(enc.checkin_datetime AS DATETIME) AS checkin_datetime ,
-                        CAST(enc.enc_status AS CHAR(1)) AS enc_status ,
-                        CAST(enc.created_by AS INT) AS user_enc_created ,
-                        CAST(per.primarycare_prov_id AS UNIQUEIDENTIFIER) AS pcp_id ,
-                        CAST(enc.billable_ind AS CHAR(1)) AS billable_ind ,
-                        CAST(a.event_id AS UNIQUEIDENTIFIER) AS event_id ,
-                        CAST(NULL AS VARCHAR(30)) AS event_name ,
-                        CAST(NULL AS DATETIME) AS appt_create_time ,
-                        CAST(NULL AS DATETIME) AS appt_modify_time ,
-                        CAST(NULL AS INT) AS user_appt_created,
-                        1 AS ng_data
-                FROM    [10.183.0.94].NGProd.dbo.patient_encounter enc
-                        LEFT JOIN [10.183.0.94].NGProd.dbo.appointments a ON enc.enc_id = a.enc_id
-                        LEFT JOIN [10.183.0.94].NGProd.dbo.person per ON per.person_id = enc.person_id
-                WHERE   a.enc_id IS NULL
-                        AND CONVERT(CHAR(8), enc.billable_timestamp, 112) >= @dt_start;
+  --             --**DQ** This section of the procedure began running endlessly or taking 8 hours
+				--There is a bug in SQL server 2012 for linked servers that requires CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) as workaround for NULL as uniqueindetifier
+  --             --See this post http://sqlwithmanoj.com/2015/03/27/sqlncli11-for-linked-server-xyz-returned-message-requested-conversion-is-not-supported-sql-server-2012-upgrade-behavior-changes/
+  --              SELECT  
+  --                      CAST(NULL AS DATE) AS appt_date ,
+  --                      CAST(NULL AS CHAR(4)) AS slot_time ,
+  --                      CAST(NULL AS CHAR(1)) AS appt_type ,
+  --                      CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS resource_id ,
+  --                      CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_loc_id ,
+  --                      CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_person_id ,
+  --                      CAST(enc.person_id AS UNIQUEIDENTIFIER) AS enc_person_id ,
+		--				(SELECT TOP 1 nd.person_key
+		--					FROM dbo.data_person_nd_month nd
+		--					WHERE nd.person_id=per.person_Id)
+		--				AS person_key,
+  --                      CAST(enc.enc_id AS UNIQUEIDENTIFIER) AS enc_id ,
+  --                      CAST(enc.enc_nbr AS NUMERIC(12, 0)) AS enc_nbr ,
+  --                      CAST('Encounter no appt' AS VARCHAR(20)) AS enc_slot_type ,
+  --                      CAST(NULL AS NUMERIC(12, 0)) AS appt_nbr ,
+  --                      CAST(NULL AS INT) AS interval ,
+  --                      CAST(NULL AS INT) AS duration ,
+  --                      CAST(NULL AS INT) AS slot_count ,
+  --                      CAST(enc.location_id AS UNIQUEIDENTIFIER) AS enc_loc_id ,
+  --                      CAST(enc.billable_timestamp AS DATE) AS enc_date ,
+  --                      CAST(enc.rendering_provider_id AS UNIQUEIDENTIFIER) AS enc_rendering_id ,
+  --                      CAST (NULL AS CHAR(1)) AS appt_status ,
+  --                      CAST (NULL AS CHAR(1)) AS appt_kept_ind ,
+  --                      CAST (NULL AS CHAR(1)) AS cancel_ind ,
+  --                      CAST (NULL AS CHAR(1)) AS delete_ind ,
+  --                      CAST(a.cancel_reason AS UNIQUEIDENTIFIER) AS cancel_reason ,
+  --                      CAST (NULL AS CHAR(1)) AS resched_ind ,
+  --                      CAST(enc.checkin_datetime AS DATETIME) AS checkin_datetime ,
+  --                      CAST(enc.enc_status AS CHAR(1)) AS enc_status ,
+  --                      CAST(enc.created_by AS INT) AS user_enc_created ,
+  --                      CAST(per.primarycare_prov_id AS UNIQUEIDENTIFIER) AS pcp_id ,
+  --                      CAST(enc.billable_ind AS CHAR(1)) AS billable_ind ,
+  --                      CAST(a.event_id AS UNIQUEIDENTIFIER) AS event_id ,
+  --                      CAST(NULL AS VARCHAR(30)) AS event_name ,
+  --                      CAST(NULL AS DATETIME) AS appt_create_time ,
+  --                      CAST(NULL AS DATETIME) AS appt_modify_time ,
+  --                      CAST(NULL AS INT) AS user_appt_created,
+  --                      1 AS ng_data
+  --              FROM    [10.183.0.94].NGProd.dbo.patient_encounter enc
+  --                      LEFT JOIN [10.183.0.94].NGProd.dbo.appointments a ON enc.enc_id = a.enc_id
+  --                      LEFT JOIN [10.183.0.94].NGProd.dbo.person per ON per.person_id = enc.person_id
+  --              WHERE   a.enc_id IS NULL
+  --                      AND CONVERT(CHAR(8), enc.billable_timestamp, 112) >= @dt_start;
 
 
 
@@ -516,7 +509,7 @@ link between appts and slots based on
                            --Appointment is available with PCP
                           ( SELECT TOP 1
                                     [nbr_slots_open_final]
-                            FROM    dwh.data_schedule_slots ss
+                            FROM    dbo.data_schedule_slots ss
                             WHERE   d.pcp_id = ss.provider_id
                                     AND d.appt_date = ss.appt_date
                                     AND ss.[nbr_slots_open_final] = 1
@@ -524,7 +517,7 @@ link between appts and slots based on
                      ELSE 'PCP not available for appt'
                 END AS status_pcpcrossbook,
 
-				/*Finance filters out certain events when counting billable visits. This marker is used
+				/* **DQ**Finance filters out certain events when counting billable visits. This marker is used
 				to determine a patients first billable visit annually in the final select procedure*/
 				CASE WHEN ISNULL(d.billable_ind, 'N') = 'Y'
 					AND d.enc_rendering_id NOT IN ('8EA64044-F175-4D14-A779-EB590B7215DF',
@@ -535,7 +528,7 @@ link between appts and slots based on
 						  --filtering out providers who aren't counted as billable visits
 						  --AND (SELECT TOP 1
 								--		prov.FullName
-								--  FROM  dwh.data_provider prov
+								--  FROM  dbo.data_provider prov
 								--  WHERE prov.provider_id = d.enc_rendering_id
 								--) NOT IN ('%services%',
 								--		   '%UDS%',
@@ -548,157 +541,28 @@ link between appts and slots based on
         INTO    #appt_enc2
         FROM    #appt_enc d
                 LEFT JOIN [10.183.0.94].NGProd.dbo.[mstr_lists] m ON d.cancel_reason = m.mstr_list_item_id
-                --LEFT JOIN ( SELECT DISTINCT
-                --                    source_id
-                --            FROM    [10.183.0.94].NGProd.dbo.charges
-                --          ) chg ON chg.source_id = d.enc_id;
-
-
-
-
-		/* **DQ** For some reason when the above query evaluates the chg table it was throwing an 
-		error on converting varchare to date/time. Haven't figured out why, but the update statement fixes the issue*/
-		UPDATE d 
-			SET d.status_charges = CASE WHEN chg.source_id IS NOT NULL THEN 'Has Charges'
-									ELSE 'No Charges'
-									END
-       FROM #appt_enc2 d
-		LEFT JOIN ( SELECT DISTINCT
+                LEFT JOIN ( SELECT DISTINCT
                                     source_id
                             FROM    [10.183.0.94].NGProd.dbo.charges
-                          ) chg ON chg.source_id = d.enc_id	
-	   WHERE ng_data = 1
+                          ) chg ON chg.source_id = d.enc_id;
 
-        --ECW data is inserted last, as its schema is lacking in the detail we pull from NextGen
-        INSERT INTO #appt_enc2(
-                  appt_person_id_ecw,
-				  person_key,
-                  appt_date ,
-                  ecw_location_id ,
-                  ecw_provider_id,
-				  enc_id_ecw,
-                  enc_nbr,
-                  appt_nbr ,
-                  enc_slot_type ,
-                  enc_date ,
-                  appt_kept_ind ,
-                  cancel_ind ,
-                  resched_ind ,
-                  noshow_ind,
-                  user_enc_created ,
-                  billable_ind ,
-                  appt_create_time ,
-                  pay1_name,
-                  pay2_name,
-                  pay3_name,
-                  pay1_finclass,
-                  pay2_finclass,
-                  pay3_finclass,
-                  d.ng_data,
-                  status_appt,
-                  status_appt_person,
-                  status_appt_pcp,
-                  status_appt_enc,
-                  status_enc_appt,
-                  status_enc_billable,
-                  status_enc,
-                  status_appt_kept,
-                  status_cancel_reason,
-                  status_charges,
-                  status_pcpcrossbook,
-				  diagnosis_1,
-				  diagnosis_2,
-				  diagnosis_3,
-				  billable_event
 
-        )
-        SELECT 
-            person_id,
-			(SELECT TOP 1 nd.person_key
-							FROM dwh.data_person_nd_month nd
-							WHERE nd.person_id_ecw=app.person_id)
-						AS person_key,
-            CAST(enc_date AS DATE) AS appt_date,
-            location_id,
-            provider_rendering_id,
-			enc_nbr,
-            CAST(enc_nbr AS NUMERIC) AS enc_nbr,
-            CAST(enc_nbr AS NUMERIC) AS appt_nbr,
-            'Appt with Encounter' AS enc_slot_type,
-            CAST(enc_date AS DATE) AS enc_date,
-            CASE
-                WHEN nbr_bill_enc = 1 THEN 'Y'
-                ELSE 'N'
-            END
-                AS appt_kept_ind,
-            appt_cancel_ind,
-            appt_reschedule_ind,
-            appt_noshow_ind,
-            user_appt_created,
-            CASE
-                WHEN nbr_bill_enc = 1 THEN 'Y'
-                ELSE 'N'
-            END
-                AS billable_ind,
-            appt_create_date,
-            --Replace NULL with 'Unknown'
-            COALESCE(pay1_name,'Unknown'),
-            COALESCE(pay2_name, 'Unknown'),
-            COALESCE(pay3_name, 'Unknown'),
-            --ECW doesn't have Financial Class available
-            'Unknown' AS fin1,
-            'Unknown' AS fin2,
-            'Unknown' AS fin3,
-            0 AS ng_data,
-            CASE
-                WHEN nbr_appt_cancel = 1 THEN 'Cancelled'
-                WHEN nbr_appt_no_show = 1 THEN 'No show'
-                WHEN nbr_appt_rescheduled =1 THEN 'Rescheduled'
-                WHEN CAST(enc_date AS DATE) > GETDATE() THEN 'Future'
-                ELSE 'Kept'
-            END
-                AS status_appt,
-            'Appointment with a patient'  AS status_appt_person,
-            CASE
-                WHEN nbr_pcp_appts = 1 THEN 'Appointment booked with PCP'
-                ELSE 'Appointment not booked with PCP'
-            END
-                AS status_appt_pcp,
-            CASE
-                WHEN all_enc_count = 1 THEN 'Appointment with encounter'
-                ELSE 'Appointment without encounter'
-            END
-                AS status_appt_enc,
-            CASE
-                WHEN all_enc_count = 1 THEN 'Encounter with appointment'
-                ELSE 'Appointment without encounter'
-            END
-                AS status_enc_appt,
-            CASE
-                WHEN nbr_bill_enc = 1 THEN 'Billable visit'
-                ELSE 'Non-billable visit'
-            END
-                AS status_enc_billable,
-            'Unknown' AS status_enc,
-			--Only counting the billable visits as kept appointments, otherwise numbers are way off
-            CASE
-                WHEN nbr_bill_enc = 1 THEN 'Kept'
-                ELSE 'Not Kept'
-            END
-                AS status_appt_kept,
-            --NULL values interfere with link to composite key
-            'Unknown' AS status_cancel_reason,
-            'Unknown' AS status_charges,
-            'Unknown' AS status_pcpcrossbook,
-			dx1.dx_enc,
-			dx2.dx_enc,
-			dx3.dx_enc,
-			app.nbr_bill_enc --eCW doesn't have matching events, so all billable encounters are treated as billable events in this procedure
-    FROM Prod_Ghost.dwh.data_appointment_ecw app
-	LEFT JOIN dwh.data_diagnosis_ecw dx1 ON( dx1.encounter_id_ecw=app.enc_nbr AND dx1.dx_enc_rank = 1)
-	LEFT JOIN dwh.data_diagnosis_ecw dx2 ON( dx2.encounter_id_ecw=app.enc_nbr AND dx2.dx_enc_rank = 2)
-	LEFT JOIN dwh.data_diagnosis_ecw dx3 ON( dx3.encounter_id_ecw=app.enc_nbr AND dx3.dx_enc_rank = 3)
 
+
+		--/* **DQ** For some reason when the above query evaluates the chg table it was throwing an 
+		--error on converting varchare to date/time. Haven't figured out why, but the update statement fixes the issue*/
+		--UPDATE d 
+		--	SET d.status_charges = CASE WHEN chg.source_id IS NOT NULL THEN 'Has Charges'
+		--							ELSE 'No Charges'
+		--							END
+  --     FROM #appt_enc2 d
+		--LEFT JOIN ( SELECT DISTINCT
+  --                                  source_id
+  --                          FROM    [10.183.0.94].NGProd.dbo.charges
+  --                        ) chg ON chg.source_id = d.enc_id	
+	 --  WHERE ng_data = 1
+
+ 
 
 
         /*
@@ -720,7 +584,7 @@ link between appts and slots based on
                 x9.status_cancel_reason ,
                 x10.status_charges ,
                 x11.status_pcpcrossbook
-        INTO    dwh.data_enc_appt_status
+        INTO    dbo.data_enc_appt_status
         FROM    ( SELECT DISTINCT
                             status_appt
                   FROM      #appt_enc2
@@ -768,7 +632,7 @@ link between appts and slots based on
 
 
 
-        /*
+        /*  **DQ**
         --Each appointment is matched with the composite key corresponding to the row with
         --their same combination of statuses, so many rows can share a key if their statuses are
         --match in each column
@@ -778,7 +642,7 @@ link between appts and slots based on
                 e.enc_appt_comp_key
         INTO    #appt_enc3
         FROM    #appt_enc2 d
-                LEFT JOIN dwh.data_enc_appt_status e ON e.status_appt = d.status_appt
+                LEFT JOIN dbo.data_enc_appt_status e ON e.status_appt = d.status_appt
                                                         AND e.status_appt_pcp = d.status_appt_pcp
                                                         AND e.status_appt_person = d.status_appt_person
                                                         AND e.status_appt_enc = d.status_appt_enc
@@ -793,152 +657,94 @@ link between appts and slots based on
 
 
 
---Pull NextGen dx data into a separate temp table, maybe eventually add to original insert up top
---Ranks the top 3 diagnosis for ach ecnounter based on their creation timestamp
-	SELECT enc_id, 
-	(icd9cm_code_id + '-' + description) AS diagnosis, 
-	ROW_NUMBER() OVER (PARTITION BY enc_id ORDER BY create_timestamp ASC) AS dx_order 
-	INTO #temp_dx
-	FROM [10.183.0.94].NGProd.dbo.[patient_diagnosis]
 
 
 /*
 Final SELECT statements creates the dwh table. Certain statements use a CASE statement which evaluates the d.ng_data
-flag, and pull from a different location depending on if flag is NextGen (1) or ECW (0)
+flag, and pull from a different location depending on if flag is NextGen (1) 
 */
 
         SELECT 
                 IDENTITY( INT, 1, 1 ) AS enc_appt_key ,
                 ( SELECT TOP 1
                             user_key
-                  FROM      dwh.data_user du
+                  FROM      dbo.data_user du
                   WHERE     du.resource_id = d.resource_id
                             AND d.resource_id IS NOT NULL
                 ) AS user_resource_key ,
                 d.resource_id ,
-                CASE
-                    WHEN d.ng_data = 1 THEN
 				--**DQ** Specifically Dental does note have appt location id, only enc_location id
 				--But our joins are on this location key generally
-                COALESCE(( SELECT TOP 1
+               ( SELECT TOP 1
 									location_key
-						  FROM      dwh.data_location dl
+						  FROM      dbo.data_location dl
 						  WHERE     dl.location_id = d.appt_loc_id
 									AND dl.location_id_unique_flag = 1
 									AND d.appt_loc_id IS NOT NULL
-						),
-						 ( SELECT TOP 1
-									enc_key
-						  FROM      dwh.data_encounter de
-						  WHERE     de.enc_id = d.enc_id
-									AND d.enc_id IS NOT NULL
-						))
-                    ELSE ecwl.location_key
-                END
+						)
                      AS appt_loc_key ,
                 d.appt_loc_id ,
-                ( SELECT TOP 1
-                            enc_key
-                  FROM      dwh.data_encounter de
-                  WHERE     de.enc_id = d.enc_id
-                            AND d.enc_id IS NOT NULL
-                ) AS enc_key ,
                 d.enc_id ,
-				d.enc_id_ecw,
-                CASE
-                    WHEN d.ng_data = 1 THEN
                 ( SELECT TOP 1
                             location_key
-                  FROM      dwh.data_location dl
+                  FROM      dbo.data_location dl
                   WHERE     dl.location_id = d.enc_loc_id
                             AND dl.location_id_unique_flag = 1
                             AND d.enc_loc_id IS NOT NULL
                 )
-                    ELSE ecwl.location_key
-                END
+                   
                     AS enc_loc_key ,
                 d.enc_loc_id ,
                 ( SELECT TOP 1
                             user_key
-                  FROM      dwh.data_user du
+                  FROM      dbo.data_user du
                   WHERE     du.provider_id = d.enc_rendering_id
                             AND d.enc_rendering_id IS NOT NULL
                 ) AS enc_rendering_key ,
-                CASE
-                    WHEN d.ng_data = 1 THEN
                         ( SELECT TOP 1
                                     provider_key
-                          FROM      dwh.data_provider prov
+                          FROM      dbo.data_provider prov
                           WHERE     prov.provider_id = d.enc_rendering_id
                                     AND d.enc_rendering_id IS NOT NULL
                         )
-                    ELSE ecwp.provider_key
-                END
                     AS provider_key ,
 
-                d.enc_rendering_id ,
-                CASE
-                    WHEN d.ng_data = 0 THEN
-                        ( SELECT TOP 1
+                d.enc_rendering_id , 
+						( SELECT TOP 1
                                     per_mon_id
-                          FROM      dwh.data_person_nd_month pm
-                          WHERE     pm.first_mon_date = CAST(CONVERT(VARCHAR(6), COALESCE(d.enc_date, d.appt_date), 112) + '01' AS DATE)
-                                    AND pm.person_id_ecw = d.appt_person_id_ecw
-                        )
-
-                    ELSE   
-                        ( SELECT TOP 1
-                                    per_mon_id
-                          FROM      dwh.data_person_nd_month pm
+                          FROM      dbo.data_person_nd_month pm
                           WHERE     pm.first_mon_date = CAST(CONVERT(VARCHAR(6), COALESCE(d.enc_date, d.appt_date), 112) + '01' AS DATE)
                                     AND pm.person_id = COALESCE(d.enc_person_id, d.appt_person_id)
                                     AND COALESCE(d.enc_person_id, d.appt_person_id) IS NOT NULL
                         )
-                END
                     AS per_mon_id ,
-				CASE
-                    WHEN d.ng_data = 0 THEN
-                        ( SELECT TOP 1
+						( SELECT TOP 1
                                     person_key
-                          FROM      dwh.data_person_nd_month pm
-                          WHERE     pm.first_mon_date = CAST(CONVERT(VARCHAR(6), COALESCE(d.enc_date, d.appt_date), 112) + '01' AS DATE)
-                                    AND pm.person_id_ecw = d.appt_person_id_ecw
-                        )
-
-                    ELSE   
-                        ( SELECT TOP 1
-                                    person_key
-                          FROM      dwh.data_person_nd_month pm
+                          FROM      dbo.data_person_nd_month pm
                           WHERE     pm.first_mon_date = CAST(CONVERT(VARCHAR(6), COALESCE(d.enc_date, d.appt_date), 112) + '01' AS DATE)
                                     AND pm.person_id = COALESCE(d.enc_person_id, d.appt_person_id)
                                     AND COALESCE(d.enc_person_id, d.appt_person_id) IS NOT NULL
                         )
-                END
-                    AS person_key ,
-					
-                CASE
-                    WHEN d.ng_data = 1 THEN
+						AS person_key ,
                         COALESCE(( SELECT TOP 1
                                             location_key
-                                   FROM     dwh.data_location dl
+                                   FROM     dbo.data_location dl
                                    WHERE    dl.location_id = d.enc_loc_id
                                             AND dl.location_id_unique_flag = 1
                                             AND d.enc_loc_id IS NOT NULL
                                  ), 
 								 ( SELECT TOP 1
                                                 location_key
-                                      FROM      dwh.data_location dl
+                                      FROM      dbo.data_location dl
                                       WHERE     dl.location_id = d.appt_loc_id
                                                 AND dl.location_id_unique_flag = 1
                                                 AND d.appt_loc_id IS NOT NULL
                                     ))
-                    ELSE ecwl.location_key
-                END
-                    AS location_key ,
+									 AS location_key ,
                 d.enc_appt_comp_key ,
                 ( SELECT TOP 1
                             cat_event_key
-                  FROM      dwh.data_category_event ed
+                  FROM      dbo.data_category_event ed
                   WHERE     ed.event_id = d.event_id
                 ) AS event_key ,
                 d.event_name ,
@@ -970,14 +776,14 @@ flag, and pull from a different location depending on if flag is NextGen (1) or 
                 ds.user_charted ,
                 ( SELECT TOP 1
                             user_key
-                  FROM      dwh.data_user du
+                  FROM      dbo.data_user du
                   WHERE     du.user_id = d.user_appt_created
                             AND d.user_appt_created IS NOT NULL
                 )
                     AS user_appt_created ,
                 ( SELECT TOP 1
                             user_key
-                  FROM      dwh.data_user du
+                  FROM      dbo.data_user du
                   WHERE     du.user_id = d.user_enc_created
                             AND d.user_enc_created IS NOT NULL
                 )
@@ -1307,64 +1113,13 @@ flag, and pull from a different location depending on if flag is NextGen (1) or 
                 'Unknown' AS pay2_finclass,
                 'Unknown' AS pay3_finclass,
                 d.ng_data, --to track NextGen vs ECW appointments
-				en.[enrollment_status], --Token statue
-				en.[enrollment_created_time], --Token created time(modified time)
-				en.[email_address],--email address
-				en.[email_modified_time],--email address modified time 
-				c.ecw_claim_key,
-				CASE
-					WHEN en.enc_created_by=en.enrollment_created_by   THEN 1
-					ELSE 0
-				END 
-					AS enrollment_users_match,
-				CASE
-					WHEN ng_data = 1 THEN dx1.diagnosis
-					ELSE d.diagnosis_1
-				END
-					 AS diagnosis_1,
-				CASE
-					WHEN ng_data = 1 THEN dx2.diagnosis
-					ELSE d.diagnosis_2
-				END
-					 AS diagnosis_2,
-				CASE
-					WHEN ng_data = 1 THEN dx3.diagnosis
-					ELSE d.diagnosis_3
-				END
-					 AS diagnosis_3,
-				CASE
-					WHEN d.enc_loc_id LIKE 'DBA6D52D-26D1-4748-AFB7-218BAF850E33' 
-					AND (SELECT TOP 1 app.enc_id
-							FROM #appt_enc3 app
-							WHERE d.person_key=app.person_key
-							AND app.appt_loc_id LIKE 'DBA6D52D-26D1-4748-AFB7-218BAF850E33'
-							AND app.appt_date < d.enc_date
-							AND app.appt_date >= DATEADD(DAY, -30, app.appt_date)) IS NOT NULL THEN 1
-					ELSE 0
-				END
-					AS bic_last30,
-				CASE 
-					WHEN dbo.CheckSVCforMedicalVisitUDS(sv.[svc1])= 1 OR  dbo.CheckSVCforMedicalVisitUDS(sv.[svc2])=1 
-					OR dbo.CheckSVCforMedicalVisitUDS(sv.[svc3])=1 OR  dbo.CheckSVCforMedicalVisitUDS(sv.[svc5])=1
-					OR  dbo.CheckSVCforMedicalVisitUDS(sv.[svc6])=1 OR  dbo.CheckSVCforMedicalVisitUDS(sv.[svc7])=1 
-					THEN 1
-					ELSE 0
-				END  AS UDS_Medical_visit,
 				--Varchar(30), alter table was causing issues when the procedure compiled
 				'                              ' as payer_summary
-        INTO    dwh.data_appointment
+        INTO    dbo.data_appointment
         FROM    #appt_enc3 d
-                LEFT JOIN dwh.data_status ds ON (d.enc_id = ds.enc_id AND d.enc_id IS NOT NULL)
-                LEFT JOIN dwh.data_provider ecwp ON d.ecw_provider_id=ecwp.ecw_provider_key
-                LEFT JOIN dwh.data_location ecwl ON ecwl.ecw_location_id = d.ecw_location_id
-				LEFT JOIN [dwh].[data_ngweb_enrollment] en ON  en.[enc_id]=d.enc_id --Email Token Table
-				LEFT JOIN #temp_dx dx1 ON (d.enc_id = dx1.enc_id AND dx1.dx_order = 1 )
-				LEFT JOIN #temp_dx dx2 ON (d.enc_id = dx2.enc_id AND dx2.dx_order = 2 )
-				LEFT JOIN #temp_dx dx3 ON (d.enc_id = dx3.enc_id AND dx3.dx_order = 3 )
-				LEFT JOIN dwh.data_claim_eCW c ON c.[EncounterId]=d.enc_id_ecw  ---bring claim_eCW key
-				LEFT JOIN dwh.[data_patient_dx_svc] sv ON sv.[enc_id]=d.enc_id  
+                LEFT JOIN dbo.data_status ds ON (d.enc_id = ds.enc_id AND d.enc_id IS NOT NULL)
 				--Using Select Top 1 instead of join, perhaps a change to be made later
-                --LEFT JOIN dwh.data_person_nd_month per ON (per.person_id_ecw = d.appt_person_id_ecw
+                --LEFT JOIN dbo.data_person_nd_month per ON (per.person_id_ecw = d.appt_person_id_ecw
                 --                                       AND per.first_mon_date=CAST(CONVERT(CHAR(6),COALESCE(d.enc_date, d.appt_date),112)+'01' AS date))
 
 
@@ -1372,16 +1127,16 @@ flag, and pull from a different location depending on if flag is NextGen (1) or 
 --Sets the payer information for NextGen rows (ECW is already inserted by this point),
 --Could speed up the process to add it to the insert statement
 
-ALTER TABLE dwh.data_appointment ALTER COLUMN pay1_name VARCHAR(110)
-ALTER TABLE dwh.data_appointment ALTER COLUMN pay1_finclass VARCHAR(110)
-ALTER TABLE dwh.data_appointment ALTER COLUMN pay2_finclass VARCHAR(110)
-ALTER TABLE dwh.data_appointment ALTER COLUMN pay3_finclass VARCHAR(110)
-ALTER TABLE Prod_Ghost.dwh.data_appointment ALTER COLUMN payer_summary VARCHAR(35) NULL;
+ALTER TABLE dbo.data_appointment ALTER COLUMN pay1_name VARCHAR(110)
+ALTER TABLE dbo.data_appointment ALTER COLUMN pay1_finclass VARCHAR(110)
+ALTER TABLE dbo.data_appointment ALTER COLUMN pay2_finclass VARCHAR(110)
+ALTER TABLE dbo.data_appointment ALTER COLUMN pay3_finclass VARCHAR(110)
+ALTER TABLE dbo.data_appointment ALTER COLUMN payer_summary VARCHAR(35) NULL;
 
 update el
   set el.pay1_name = pay.payer_name
     ,el.pay1_finclass = left(ml.mstr_list_item_desc,40)
-from dwh.data_appointment el
+from dbo.data_appointment el
   inner join [10.183.0.94].NGPROD.dbo.encounter_payer ep
     on el.enc_id = ep.enc_id
   inner join [10.183.0.94].NGPROD.dbo.payer_mstr pay
@@ -1395,7 +1150,7 @@ from dwh.data_appointment el
   update el
   set el.pay2_name = pay.payer_name
     ,el.pay2_finclass = left(ml.mstr_list_item_desc,40)
-from dwh.data_appointment el
+from dbo.data_appointment el
   inner join [10.183.0.94].NGPROD.dbo.encounter_payer ep
     on el.enc_id = ep.enc_id
   inner join [10.183.0.94].NGPROD.dbo.payer_mstr pay
@@ -1409,7 +1164,7 @@ from dwh.data_appointment el
   update el
   set el.pay3_name = pay.payer_name
     ,el.pay3_finclass = left(ml.mstr_list_item_desc,40)
-from dwh.data_appointment el
+from dbo.data_appointment el
   inner join [10.183.0.94].NGPROD.dbo.encounter_payer ep
     on el.enc_id = ep.enc_id
   inner join [10.183.0.94].NGPROD.dbo.payer_mstr pay
@@ -1422,7 +1177,7 @@ from dwh.data_appointment el
 
 
   
-  UPDATE dwh.data_appointment SET payer_summary = 
+  UPDATE dbo.data_appointment SET payer_summary = 
 	CASE
 		WHEN pay1_finclass LIKE 'Unknown' THEN '09 - Self Pay'
 		WHEN pay1_finclass LIKE 'Federal Sliding Fee Schedule' THEN '10 - FSFS'
@@ -1460,19 +1215,19 @@ from dwh.data_appointment el
 
 
 
-        ALTER TABLE Prod_Ghost.dwh.data_appointment
+        ALTER TABLE dbo.data_appointment
         ALTER COLUMN appt_time VARCHAR(4) NULL;
 
 
-        ALTER TABLE Prod_Ghost.dwh.data_appointment
+        ALTER TABLE dbo.data_appointment
         ADD CONSTRAINT enc_appt_key_PK PRIMARY KEY (enc_appt_key);
 
         CREATE NONCLUSTERED INDEX IX_person_mon_id1
-        ON dwh.data_appointment (per_mon_id);
+        ON dbo.data_appointment (per_mon_id);
 
 
         CREATE NONCLUSTERED INDEX IX_person_mon_x_first_mon_date1
-        ON dwh.data_appointment (per_mon_id, first_mon_date);
+        ON dbo.data_appointment (per_mon_id, first_mon_date);
 
     END;
 GO

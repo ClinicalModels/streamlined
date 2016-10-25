@@ -19,8 +19,8 @@ AS
 /****** Script for SelectTopNRows command from SSMS  ******/
 
 
-        IF OBJECT_ID('dwh.data_status') IS NOT NULL
-            DROP TABLE dwh.data_status; 
+        IF OBJECT_ID('dbo.data_status') IS NOT NULL
+            DROP TABLE dbo.data_status; 
 
 
         DECLARE @build_dt_start VARCHAR(8) ,
@@ -195,45 +195,45 @@ AS
 					--pulls enc_appt_key, but still referenced as enc_key, so as not to interfere with primary key references
                     --( SELECT TOP 1
                     --            de.enc_appt_key
-                    --  FROM      dwh.data_appointment de
+                    --  FROM      dbo.data_appointment de
                     --  WHERE     de.enc_id = x.enc_id
                     --            AND x.enc_id IS NOT NULL
                     --) AS enc_key ,
                     ( SELECT TOP 1
                                 user_key
-                      FROM      dwh.data_user du
+                      FROM      dbo.data_user du
                       WHERE     x.user_readyforprovider = du.user_id
                                 AND x.user_readyforprovider IS NOT NULL
                     ) AS user_readyforprovider ,
                     ( SELECT TOP 1
                                 user_key
-                      FROM      dwh.data_user du
+                      FROM      dbo.data_user du
                       WHERE     x.user_checkout = du.user_id
                                 AND x.user_checkout IS NOT NULL
                     ) AS user_checkout ,
                     ( SELECT TOP 1
                                 user_key
-                      FROM      dwh.data_user du
+                      FROM      dbo.data_user du
                       WHERE     x.user_charted = du.user_id
                                 AND x.user_charted IS NOT NULL
                     ) AS user_charted,
 					--Added 3 columns for provider actual time with patients
 					(
 					  SELECT TOP 1 du.user_key
-					  FROM dwh.data_user du
+					  FROM dbo.data_user du
 					  WHERE (du.user_key IS NOT NULL) AND  x.UserId=du.user_id
 
 					) AS user_provider, 
 					x.[checkin_datetime] as start_datetime,
 					x.end_datetime
-            INTO    dwh.data_status
+            INTO    dbo.data_status
             FROM    statusfinal x;
 
 
-        --ALTER TABLE Prod_Ghost.dwh.data_status
+        --ALTER TABLE Prod_Ghost.dbo.data_status
         --ALTER COLUMN enc_key INTEGER NOT NULL;
 
-        --ALTER TABLE Prod_Ghost.dwh.data_status
+        --ALTER TABLE Prod_Ghost.dbo.data_status
         --ADD CONSTRAINT enc_key_pk20 PRIMARY KEY (enc_key);
   
 		

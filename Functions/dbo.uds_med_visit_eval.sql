@@ -1,0 +1,21 @@
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_NULLS ON
+GO
+CREATE FUNCTION [dbo].[uds_med_visit_eval](@CPT VARCHAR(13))  
+RETURNS int   
+AS   
+
+BEGIN  
+    DECLARE @ret int;  
+    SELECT @ret = CASE
+					WHEN @CPT IN('99050','99201','99202','99203','99204','99205','99211','99212',
+								'99213','99214','99215','99241','99242','99243','99244',
+								'99245','99381','99382','99383','99384','99385','99386',
+								'99387','99391','99392','99393','99394','99395','99396','99397') 
+								THEN 1
+					ELSE 0
+				  END 
+    RETURN @ret;  
+END;  
+GO

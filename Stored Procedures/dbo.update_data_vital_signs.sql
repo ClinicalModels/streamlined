@@ -22,12 +22,12 @@ AS
 		IF OBJECT_ID('tempdb..#recency_vitals') IS NOT NULL
             DROP TABLE #recency_vitals;
 
-        IF OBJECT_ID('dwh.data_vital_signs') IS NOT NULL
-            DROP TABLE dwh.data_vital_signs;
+        IF OBJECT_ID('dbo.data_vital_signs') IS NOT NULL
+            DROP TABLE dbo.data_vital_signs;
 
 			
-        IF OBJECT_ID('dwh.data_enc_vital') IS NOT NULL
-            DROP TABLE dwh.data_enc_vital;
+        IF OBJECT_ID('dbo.data_enc_vital') IS NOT NULL
+            DROP TABLE dbo.data_enc_vital;
 		IF OBJECT_ID('tempdb..#vital') IS NOT NULL
             DROP TABLE #vital;
 
@@ -45,9 +45,7 @@ AS
 			[first_mon_date] DATE NULL,
 			[enc_appt_key] INT NULL,
 			[person_id] UNIQUEIDENTIFIER NULL,
-			[person_id_ecw] INT NULL,
 			[encounterID] UNIQUEIDENTIFIER NULL,
-			[encounter_id_ecw] INT NULL,
 			[create_timestamp] DATE NULL,
 			[BP_date] DATE NULL,
 			[Date of Measurement] DATE NULL,
@@ -176,70 +174,12 @@ AS
         ORDER BY data_appointment.person_id ,
                 data_appointment.first_mon_date
 
-		--Insert ECW data
-		INSERT INTO #temp_vital_1
-		        ( per_mon_id ,
-		          person_key ,
-		          first_mon_date ,
-		          enc_appt_key ,
-		          person_id_ecw ,
-		          encounter_id_ecw ,
-		          create_timestamp ,
-		          BP_date ,
-		          [Date of Measurement] ,
-				  [Datetime of Measurement],
-		          [Blood Pressure Systolic] ,
-		          [Blood Pressure Diastolic] ,
-		          BMI ,
-		          [Height Cm] ,
-		          [Weight Kg] ,
-		          [Weight Lb] ,
-		          Recency ,
-		          RecencyDay ,
-		          RecencyAllTime ,
-		          --NextDate ,
-		          ng_data
-		        )
-		SELECT
-			COALESCE(per.per_mon_id, app.per_mon_id),
-			COALESCE(per.person_key,app.person_key),
-			COALESCE(per.first_mon_date,app.first_mon_date),
-			app.enc_appt_key,
-			v.person_id,
-			v.encounter_id,
-			v.create_timestamp,
-			v.create_timestamp,
-			CAST(v.create_timestamp AS DATE),
-			v.create_timestamp,
-			v.bp_syst_clean,
-			v.bp_diast_clean,
-			v.bmi_clean,
-			v.height_cm_calc,
-			v.weight_kg_calc,
-			v.weight_lb_clean,
-			v.recency_day,
-			v.recency_day,
-			v.recency_all,
-			--v.NextDate,
-			0 AS ng_data
-		FROM dwh.data_vital_signs_ecw v
-		LEFT OUTER JOIN [dwh].[data_person_dp_month] per WITH ( NOLOCK ) ON per.[person_id_ecw] = v.person_id
-                                                                         AND ( ( per.[first_mon_date] = ( CAST(CONVERT(CHAR(6), v.create_timestamp, 112)
-                                                                                                        + '01' AS DATE) ) )
-                                                                                             
-						
-                                                                                              )
-                LEFT OUTER JOIN [dwh].[data_appointment] app WITH ( NOLOCK ) ON app.[enc_nbr] = v.encounter_id AND app.ng_data = 0
-        ORDER BY app.person_id ,
-                app.first_mon_date
-
+	
 --using UNPIVOT statetment to show vital signs as Type and Value
  ;
         WITH    vital
                   AS ( SELECT   [encounterID] ,
                                 [person_id] ,
-								person_id_ecw ,
-								encounter_id_ecw,
 								[create_timestamp],
                                 BP_date ,
                                 [Date of Measurement] ,
@@ -256,8 +196,6 @@ AS
                                 Value
                        FROM     ( SELECT    [encounterID] ,
                                             [person_id] ,
-											person_id_ecw,
-											encounter_id_ecw,
                                             [create_timestamp] ,
                                             BP_date ,
                                             [Date of Measurement] ,
@@ -283,62 +221,28 @@ AS
                      )
             SELECT  IDENTITY(INT,1,1) AS vital_signs_key,
 			*
-            INTO    dwh.data_vital_signs
+            INTO    dbo.data_vital_signs
             FROM    vital; 
 
-----------------This part creates dwh vital signs table uniqe by encounter ID---------------------
 
 
-  SELECT * INTO #vital
-  FROM dwh.data_vital_signs WHERE Type='Blood Pressure Systolic' OR Type='Blood Pressure Diastolic'
+ALTER TABLE dbo.data_vital_signs ADD bp_sys INT NULL
+ALTER TABLE dbo.data_vital_signs ADD bp_dia INT NULL 
 
 
-			
-SELECT  [encounterID],encounter_id_ecw,[Blood Pressure Systolic], [Blood Pressure Diastolic]
- INTO #temp_vital
-FROM  
-(SELECT [encounterID],encounter_id_ecw,Type, Value   
-    FROM #vital) AS SourceTable  
-PIVOT  
-(  
-MAX(Value)  
-FOR Type IN ([Blood Pressure Systolic], [Blood Pressure Diastolic])  
-) AS PivotTable; 
-				
----create vital table unique by encounterID
-SELECT tv.*,
-CASE WHEN (tv.encounterID IS NOT NULL) 
-THEN (SELECT TOP 1 v.create_timestamp FROM #vital v  WHERE (v.encounterID=tv.encounterID)) 
-else
-(SELECT TOP 1 v.create_timestamp FROM #vital v  WHERE (v.encounter_id_ecw=tv.encounter_id_ecw))
-END create_timestamp,
-(SELECT TOP 1 v.person_id FROM #vital v  WHERE v.encounterID=tv.encounterID) AS person_id,
-(SELECT TOP 1 v.person_id_ecw FROM #vital v  WHERE v.encounter_id_ecw=tv.encounter_id_ecw) AS person_id_ecw
-INTO  #vital_final 
-FROM #temp_vital tv
+UPDATE dbo.data_vital_signs
+	SET bp_sys =
+		(CASE
+			WHEN Type LIKE 'Blood Pressure Systolic' THEN 1
+			ELSE 0
+		END)
 
-
-SELECT #vital_final.*,
-CASE WHEN (encounterID IS NOT NULL) then (SELECT TOP 1 enc_appt_key FROM dwh.data_appointment WHERE #vital_final.encounterID=data_appointment.enc_id) 
-	 ELSE (SELECT TOP 1 enc_appt_key FROM dwh.data_appointment WHERE #vital_final.encounter_id_ecw=data_appointment.enc_id_ecw)
-END enc_appt_key,
-CASE WHEN (encounterID IS NOT NULL)
-then
- ROW_NUMBER() OVER(PARTITION BY #vital_final. person_id,YEAR(#vital_final.create_timestamp) ORDER BY create_timestamp DESC)
- WHEN (encounter_id_ecw IS NOT NULL) then ROW_NUMBER() OVER(PARTITION BY #vital_final.person_id_ecw,YEAR(#vital_final.create_timestamp) ORDER BY create_timestamp DESC) 
- END [YearRecency],
- CASE
-   WHEN [Blood Pressure Systolic]<140  AND [Blood Pressure Diastolic]<90 THEN 1
-   ELSE 0
- END [UDS Vital Sign],
- CASE WHEN (SELECT TOP 1 [UDS Hypertension Denominator]  FROM dwh.data_patient_dx_svc dx WHERE person_id=#vital_final.person_id AND YEAR(#vital_final.create_timestamp)=dx.measurementYear AND dx.[UDS Hypertension Denominator]=1) =1 
-THEN 1 ELSE 0 END  [UDS Hypertension Dm Flag]
-
- INTO dbo.data_enc_vital
-FROM #vital_final
-
-
-
+UPDATE dbo.data_vital_signs
+    SET bp_dia =
+		(CASE
+			WHEN Type LIKE 'Blood Pressure Diastolic' THEN 1
+			ELSE 0
+		END)
 
  END;
 GO

@@ -29,26 +29,26 @@ BEGIN
 	set nocount on
 	SET transaction isolation level read UNCOMMITTED
     
-    IF OBJECT_ID('#temp_active_paq') IS NOT NULL
-           DROP TABLE #temp_active_paq;
-    IF OBJECT_ID('#lab_flag') IS NOT NULL
+    IF OBJECT_ID('tempdb..#active_paq') IS NOT NULL
+           DROP TABLE #active_paq;
+    IF OBJECT_ID('tempdb..#lab_flag') IS NOT NULL
             DROP TABLE #lab_flag;
-    IF OBJECT_ID('#data_PAQ') IS NOT NULL
+    IF OBJECT_ID('tempdb..#data_PAQ') IS NOT NULL
             DROP TABLE #data_PAQ;
-	IF OBJECT_ID('#temp_signoffPAQ') IS NOT NULL
+	IF OBJECT_ID('tempdb..#temp_signoffPAQ') IS NOT NULL
 		DROP TABLE #temp_signoffPAQ;
-	IF OBJECT_ID('#temp_all_signoffPAQ') IS NOT NULL
+	IF OBJECT_ID('tempdb..#temp_all_signoffPAQ') IS NOT NULL
 		DROP TABLE #temp_all_signoffPAQ;
-	IF OBJECT_ID(' #data_PAQ_final') IS NOT NULL
+	IF OBJECT_ID('tempdb..#data_PAQ_final') IS NOT NULL
 		DROP TABLE #data_PAQ_final
-	IF OBJECT_ID('#labPAQ') IS NOT NULL
+	IF OBJECT_ID('tempdb..#labPAQ') IS NOT NULL
 		DROP TABLE #labPAQ
-	IF OBJECT_ID('dwh.data_PAQ') IS NOT NULL
-		DROP TABLE dwh.data_PAQ
+	IF OBJECT_ID('dbo.data_paq') IS NOT NULL
+		DROP TABLE dbo.data_paq
 
 
 
-CREATE table  #temp_active_paq  (
+CREATE table  #active_paq  (
    [Item Type]            varchar(1)       NOT NULL, --L for lab,D for Document and S for ICS pictures
    [Item ID]            uniqueidentifier NOT NULL,     
    [provider_id]          uniqueidentifier  NULL,
@@ -114,7 +114,7 @@ SET @pi_provider_type = 'O'  --O ordering provider E encounter
 IF @pi_use_documents_flag = 1
 BEGIN
    -- Reassigned
-   INSERT INTO  #temp_active_paq  
+   INSERT INTO  #active_paq  
    SELECT 'D' As 'Item Type',d.document_id, d.paq_provider_id as provider_id,d.enc_id AS enc_id,d.document_desc As 'Item Name',d.created_by AS created_by,d.modified_by AS modified_by, d.create_timestamp as 'CreateDate',d.modify_timestamp AS modifyDate, e.person_id,NULL
      FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
      INNER JOIN [10.183.0.94].NGProd.dbo.patient_documents d 
@@ -135,7 +135,7 @@ BEGIN
    IF @pi_provider_type = 'O' 
    BEGIN
       -- All documents attached to radiology orders for a given ordering provider
-      INSERT INTO  #temp_active_paq  
+      INSERT INTO  #active_paq  
       SELECT 'D' As 'Item Type',d.document_id,lt.ordering_provider as provider_id,d.enc_id AS enc_id,d.document_desc As 'Item Name',d.created_by AS created_by,d.modified_by AS modified_by, d.create_timestamp as 'CreateDate',d.modify_timestamp AS modifyDate ,e.person_id,NULL
       FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
       INNER JOIN [10.183.0.94].NGProd.dbo.patient_documents d 
@@ -151,13 +151,13 @@ BEGIN
                         AND e.practice_id = lt.practice_id 
                         AND lt.delete_ind = 'N' 
       LEFT OUTER JOIN [10.183.0.94].NGProd.dbo.security_items s 
-        with (nolock)  ON d.document_desc = s.description 
-          AND s.item_type = 'D' 
-          AND s.delete_ind = 'N' 
+       with (nolock)  ON d.document_desc = s.description 
+       AND s.item_type = 'D' 
+       AND s.delete_ind = 'N' 
       WHERE EXISTS (SELECT 1 FROM [10.183.0.94].NGProd.dbo.lab_results_obx x 
                     INNER JOIN [10.183.0.94].NGProd.dbo.lab_results_obr_p r 
                      with (nolock)   ON x.unique_obr_num = r.unique_obr_num 
-                    INNER JOIN [10.183.0.94].NGProd.dbo.lab_nor l 
+                     INNER JOIN [10.183.0.94].NGProd.dbo.lab_nor l 
                      with (nolock)   ON e.enterprise_id = l.enterprise_id 
                         AND e.practice_id = l.practice_id 
                         AND l.delete_ind = 'N' 
@@ -172,7 +172,7 @@ BEGIN
                               AND x.delete_ind = 'N')
          
 --      -- All documents (not attached to radiology orders) for a given rendering provider
-      INSERT INTO  #temp_active_paq  
+      INSERT INTO  #active_paq  
       SELECT 'D' As 'Item Type',d.document_id ,e.rendering_provider_id as provider_id,d.enc_id AS enc_id, d.document_desc As 'Item Name',d.created_by AS created_by,d.modified_by AS modified_by, d.create_timestamp as 'CreateDate',d.modify_timestamp AS modifyDate,e.person_id,NULL
       FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
       INNER JOIN [10.183.0.94].NGProd.dbo.patient_documents d 
@@ -197,12 +197,21 @@ BEGIN
                                   AND x.observ_value = cast(d.document_id as varchar(36)) 
                                   AND x.delete_ind = 'N')
    END
-   ELSE
+ ELSE
    BEGIN
    -- Use Encounter Provider
-      INSERT INTO  #temp_active_paq  
-      SELECT 'D' As 'Item Type',d.document_id,e.rendering_provider_id as provider_id,d.enc_id AS enc_id, d.document_desc As 'Item Name',d.created_by AS created_by,d.modified_by AS modified_by, d.create_timestamp as 'CreateDate',d.modify_timestamp AS modifyDate,e.person_id,NULL
-        FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
+      INSERT INTO  #active_paq  
+      SELECT 
+		'D' As 'Item Type'
+		,d.document_id
+		,e.rendering_provider_id as provider_id
+		,d.enc_id AS enc_id
+		, d.document_desc As 'Item Name'
+		,d.created_by AS created_by,d.modified_by AS modified_by
+		, d.create_timestamp as 'CreateDate'
+		,d.modify_timestamp AS modifyDate
+		,e.person_id,NULL
+       FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
         INNER JOIN patient_documents d 
        with (nolock)  ON e.enterprise_id = d.enterprise_id
          AND e.practice_id = d.practice_id 
@@ -211,7 +220,7 @@ BEGIN
          AND e.practice_id = @pi_practice_id 
         -- AND e.rendering_provider_id = @pi_provider_id 
 		AND e.rendering_provider_id IS NOT NULL
-         AND d.signoff_status = @pi_signoff_status 
+        AND d.signoff_status = @pi_signoff_status 
         LEFT OUTER JOIN [10.183.0.94].NGProd.dbo.security_items s 
         with (nolock)  ON d.document_desc = s.description 
          AND s.item_type = 'D' 
@@ -226,8 +235,15 @@ END
 IF @pi_use_notes_flag = 1
 BEGIN
 -- Reassigned
-INSERT INTO  #temp_active_paq 
- SELECT 'N' As 'Item Type',n.note_id,n.paq_provider_id as provider_id,n.enc_id, RTRIM(n.table_name) + '.' + RTRIM(n.field_name) As 'Item Name', n.created_by AS created_by,n.modified_by AS modified_by, n.create_timestamp as 'CreateDate',n.modify_timestamp AS modifyDate, e.person_id,NULL
+INSERT INTO  #active_paq 
+ SELECT 
+	'N' As 'Item Type'
+	,n.note_id,n.paq_provider_id as provider_id
+	,n.enc_id, RTRIM(n.table_name) + '.' + RTRIM(n.field_name) As 'Item Name'
+	,n.created_by AS created_by,n.modified_by AS modified_by
+	,n.create_timestamp as 'CreateDate'
+	,n.modify_timestamp AS modifyDate
+	,e.person_id,NULL
 FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
  INNER JOIN  [10.183.0.94].NGProd.dbo.patient_notes n 
   with (nolock)  ON e.enterprise_id = n.enterprise_id
@@ -241,11 +257,21 @@ FROM [10.183.0.94].NGProd.dbo.patient_encounter e
     LEFT OUTER JOIN [10.183.0.94].NGProd.dbo.templates t 
  with (nolock)   ON substring(n.table_name,1,len(n.table_name)-1) = t.template_name
  
-INSERT INTO  #temp_active_paq  
- SELECT 'N' As 'Item Type',n.note_id, e.rendering_provider_id as provider_id,n.enc_id, RTRIM(n.table_name) + '.' + RTRIM(n.field_name) As 'Item Name', n.created_by AS created_by,n.modified_by AS modified_by, n.create_timestamp as 'CreateDate',n.modify_timestamp AS modifyDate, e.person_id,NULL  
- FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
- INNER JOIN [10.183.0.94].NGProd.dbo.patient_notes n 
-  with (nolock)  ON e.enterprise_id = n.enterprise_id
+INSERT INTO  #active_paq  
+SELECT 
+	'N' As 'Item Type'
+	,n.note_id
+	,e.rendering_provider_id as provider_id
+	,n.enc_id
+	,RTRIM(n.table_name) + '.' + RTRIM(n.field_name) As 'Item Name'
+	,n.created_by AS created_by
+	,n.modified_by AS modified_by
+	,n.create_timestamp as 'CreateDate'
+	,n.modify_timestamp AS modifyDate
+	,e.person_id,NULL  
+FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
+INNER JOIN [10.183.0.94].NGProd.dbo.patient_notes n 
+with (nolock)  ON e.enterprise_id = n.enterprise_id
    AND e.practice_id = n.practice_id 
    AND e.enc_id = n.enc_id
    AND e.enterprise_id = @pi_enterprise_id 
@@ -264,7 +290,7 @@ END
 IF @pi_use_images_flag = 1
 BEGIN
    -- Reassigned
-   INSERT INTO  #temp_active_paq  
+   INSERT INTO  #active_paq  
    SELECT 'I' As 'Item Type',i.image_id, i.paq_provider_id as provider_id,e.enc_id, i.image_desc As 'Item Name', i.created_by AS created_by,i.modified_by AS modified_by, i.create_timestamp as 'CreateDate',i.modify_timestamp AS modifyDate, i.person_id,NULL
    FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
     INNER JOIN [10.183.0.94].NGProd.dbo.patient_images i 
@@ -278,10 +304,10 @@ BEGIN
       AND i.signoff_status = @pi_signoff_status
       
    -- Use Ordering Provider
-   IF @pi_provider_type = 'O' 
-   BEGIN
+IF @pi_provider_type = 'O' 
+BEGIN
       -- All images attached to radiology orders for a given ordering provider
-      INSERT INTO  #temp_active_paq  
+      INSERT INTO  #active_paq  
        SELECT 'I' As 'Item Type' ,i.image_id, lt.ordering_provider as provider_id,e.enc_id, i.image_desc As 'Item Name', i.created_by AS created_by,i.modified_by AS modified_by, i.create_timestamp as 'CreateDate',i.modify_timestamp AS modifyDate, i.person_id,NULL
       FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
       INNER JOIN [10.183.0.94].NGProd.dbo.patient_images i 
@@ -314,7 +340,7 @@ BEGIN
                                AND x.delete_ind = 'N')
          
       -- All images (not attached to radiology orders) for a given rendering provider
-      INSERT INTO  #temp_active_paq  
+      INSERT INTO  #active_paq  
      SELECT 'I' As 'Item Type',i.image_id, e.rendering_provider_id as provider_id,e.enc_id, i.image_desc As 'Item Name', i.created_by AS created_by,i.modified_by AS modified_by, i.create_timestamp as 'CreateDate',i.modify_timestamp AS modifyDate, i.person_id,NULL
       FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
       INNER JOIN [10.183.0.94].NGProd.dbo.patient_images i 
@@ -334,22 +360,35 @@ BEGIN
                                   AND x.obs_id = '[{Image}]' 
                                   AND x.observ_value = cast(i.image_id as varchar(36)) 
                                   AND x.delete_ind = 'N')
-   END
-   ELSE
+ END
+   
+ELSE
+   
    BEGIN
    -- Use Encounter Provider
-       SELECT 'I' As 'Item Type',i.image_id, e.rendering_provider_id as provider_id,e.enc_id, i.image_desc As 'Item Name', i.created_by AS created_by,i.modified_by AS modified_by, i.create_timestamp as 'CreateDate',i.modify_timestamp AS modifyDate, i.person_id,NULL
-      FROM patient_encounter e 
+       SELECT 
+			'I' As 'Item Type'
+			,i.image_id
+			, e.rendering_provider_id as provider_id
+			,e.enc_id
+			, i.image_desc As 'Item Name'
+			, i.created_by AS created_by
+			,i.modified_by AS modified_by
+			, i.create_timestamp as 'CreateDate'
+			,i.modify_timestamp AS modifyDate
+			, i.person_id
+			,NULL
+       FROM patient_encounter e 
        INNER JOIN [10.183.0.94].NGProd.dbo.patient_images i 
        with (nolock)   ON e.enterprise_id = i.enterprise_id
-         AND e.practice_id = i.practice_id 
-         AND e.enc_id = i.enc_id 
-         AND e.enterprise_id = @pi_enterprise_id 
-         AND e.practice_id = @pi_practice_id 
+       AND e.practice_id = i.practice_id 
+       AND e.enc_id = i.enc_id 
+       AND e.enterprise_id = @pi_enterprise_id 
+       AND e.practice_id = @pi_practice_id 
         -- AND e.rendering_provider_id = @pi_provider_id 
 		AND e.rendering_provider_id IS NOT NULL --add
-         AND i.signoff_status = @pi_signoff_status 
-         AND i.paq_provider_id IS NULL
+        AND i.signoff_status = @pi_signoff_status 
+        AND i.paq_provider_id IS NULL
    END
 END
  
@@ -359,26 +398,26 @@ END
 IF @pi_use_ics_flag = 1 
 BEGIN
 -- Reassigned
-INSERT INTO  #temp_active_paq 
-SELECT 'S' As 'Item Type',i.ics_image_id, i.provider_id as provider_id,i.enc_id,
+	INSERT INTO  #active_paq 
+	SELECT 'S' As 'Item Type',i.ics_image_id, i.provider_id as provider_id,i.enc_id,
         CASE 
            WHEN d.description = ''    THEN t.description
            WHEN d.description IS NULL THEN t.description
            ELSE d.description
         END As 'Item Name', i.created_by AS created_by,i.modified_by AS modified_by, i.create_timestamp as 'CreateDate',i.modify_timestamp AS modifyDate, i.person_id,NULL
-   FROM [10.183.0.94].NGProd.dbo.patient_ics_images i 
+  FROM [10.183.0.94].NGProd.dbo.patient_ics_images i 
   INNER JOIN [10.183.0.94].NGProd.dbo.document d 
-   with (nolock)  ON d.document_id = i.document_id
-     AND d.practice_id = i.practice_id
-     and d.enterprise_id = i.enterprise_id 
-     AND i.signoff_status = @pi_signoff_status
-    AND i.enterprise_id = @pi_enterprise_id
-    AND i.practice_id = @pi_practice_id
+  WITH (nolock)  ON d.document_id = i.document_id
+	AND d.practice_id = i.practice_id
+	and d.enterprise_id = i.enterprise_id 
+	AND i.signoff_status = @pi_signoff_status
+	AND i.enterprise_id = @pi_enterprise_id
+	AND i.practice_id = @pi_practice_id
    -- AND i.provider_id = @pi_provider_id 
-   AND i.provider_id IS NOT NULL --add
-    AND d.delete_ind = 'N' 
+	AND i.provider_id IS NOT NULL --add
+	AND d.delete_ind = 'N' 
   INNER JOIN [10.183.0.94].NGProd.dbo.doc_type_mstr t 
-   with (nolock)  ON t.doc_type_id = d.doc_type_id 
+	with (nolock)  ON t.doc_type_id = d.doc_type_id 
     AND t.delete_ind = 'N' 
   INNER JOIN [10.183.0.94].NGProd.dbo.page g 
    with (nolock)  ON g.document_id = d.document_id 
@@ -388,19 +427,23 @@ SELECT 'S' As 'Item Type',i.ics_image_id, i.provider_id as provider_id,i.enc_id,
    LEFT OUTER JOIN [10.183.0.94].NGProd.dbo.patient_encounter e 
    with (nolock)  ON e.enc_id = i.enc_id and e.practice_id = i.practice_id
  
-INSERT INTO  #temp_active_paq 
-SELECT 'S' As 'Item Type',i.ics_image_id, e.rendering_provider_id as provider_id,i.enc_id,
+INSERT INTO  #active_paq 
+SELECT 
+	'S' As 'Item Type'
+	,i.ics_image_id
+	,e.rendering_provider_id as provider_id
+	,i.enc_id,
         CASE 
            WHEN d.description = ''    THEN t.description
            WHEN d.description IS NULL THEN t.description
            ELSE d.description
         END As 'Item Name', i.created_by AS created_by,i.modified_by AS modified_by, i.create_timestamp as 'CreateDate',i.modify_timestamp AS modifyDate, i.person_id,NULL
    FROM [10.183.0.94].NGProd.dbo.patient_ics_images i 
-  INNER JOIN [10.183.0.94].NGProd.dbo.document d 
+   INNER JOIN [10.183.0.94].NGProd.dbo.document d 
    with (nolock)  ON d.document_id = i.document_id
-     AND d.practice_id = i.practice_id
-     and d.enterprise_id = i.enterprise_id 
-     AND i.signoff_status = @pi_signoff_status
+    AND d.practice_id = i.practice_id
+    and d.enterprise_id = i.enterprise_id 
+    AND i.signoff_status = @pi_signoff_status
     AND i.enterprise_id = @pi_enterprise_id
     AND i.practice_id = @pi_practice_id
     AND d.delete_ind = 'N' 
@@ -452,27 +495,30 @@ BEGIN
 
 
    -- Reassigned
-  -- INSERT INTO  #temp_active_paq 
+  -- INSERT INTO  #active_paq 
   ;WITH labDublicate AS(
    SELECT 'L' As 'Item Type',l.order_num, l.paq_provider_id as provider_id, e.enc_id,l.test_desc as 'Item Name',l.created_by,l.modified_by , l.create_timestamp as 'CreateDate',l.modify_timestamp, e.person_id
    ,	 x.abnorm_flags,
-	 (SELECT  CASE  ISNULL(x.abnorm_flags,'NULL')
-	  WHEN '>' THEN 1
-	  WHEN 'HH' THEN 2
-	  WHEN 'H'  THEN 3 
-	  WHEN '<' THEN 4
-	  WHEN 'LL' THEN 5
-	  WHEN 'L' THEN 6
-	  WHEN 'AA' THEN 7
-	  WHEN 'A' THEN 8
-	  WHEN 'W' THEN 9
-	  WHEN 'U' THEN 10
-	  WHEN 'D' THEN 11
-	  WHEN 'R' THEN 12
-	  WHEN 'I' THEN 13
-      WHEN 'B' THEN 14
-	  WHEN  'NULL' THEN 16
-	 ELSE 15 END) as [Range]
+	 (SELECT  
+		 CASE  ISNULL(x.abnorm_flags,'NULL')
+			  WHEN '>' THEN 1
+			  WHEN 'HH' THEN 2
+			  WHEN 'H'  THEN 3 
+			  WHEN '<' THEN 4
+			  WHEN 'LL' THEN 5
+			  WHEN 'L' THEN 6
+			  WHEN 'AA' THEN 7
+			  WHEN 'A' THEN 8
+			  WHEN 'W' THEN 9
+			  WHEN 'U' THEN 10
+			  WHEN 'D' THEN 11
+			  WHEN 'R' THEN 12
+			  WHEN 'I' THEN 13
+			  WHEN 'B' THEN 14
+			  WHEN  'NULL' THEN 16
+			  ELSE 15 
+		 END) 
+			AS [Range]
      FROM [10.183.0.94].NGProd.dbo.patient_encounter e 
      INNER JOIN [10.183.0.94].NGProd.dbo.lab_nor l 
       with (nolock) ON  e.enc_id = l.enc_id
@@ -505,7 +551,7 @@ BEGIN
    -- Use Ordering Provider
    IF @pi_provider_type = 'O' 
    BEGIN
-     -- INSERT INTO  #temp_active_paq 
+     -- INSERT INTO  #active_paq 
 	 ;WITH labDublicate AS(
     SELECT 'L' As 'Item Type',l.order_num, l.ordering_provider as provider_id, e.enc_id,l.test_desc as 'Item Name',l.created_by,l.modified_by , l.create_timestamp as 'CreateDate',l.modify_timestamp, e.person_id
 	 ,	 x.abnorm_flags,
@@ -559,7 +605,7 @@ BEGIN
    ELSE
    BEGIN
    -- Use Encounter Provider
-     -- INSERT INTO  #temp_active_paq 
+     -- INSERT INTO  #active_paq 
 	 ;WITH labDublicate AS(
    SELECT 'L' As 'Item Type',l.order_num, e.rendering_provider_id as provider_id, e.enc_id,l.test_desc as 'Item Name',l.created_by,l.modified_by , l.create_timestamp as 'CreateDate',l.modify_timestamp, e.person_id
     ,	 x.abnorm_flags,
@@ -613,7 +659,7 @@ BEGIN
 END -- Labs
  
  --insert into active PAQ lab
-  INSERT INTO  #temp_active_paq 
+  INSERT INTO  #active_paq 
 	  SELECT 
 	   [Item Type]
       ,[order_num]
@@ -632,7 +678,7 @@ END -- Labs
 
 --copy all signoffPAQ  to temp table
 SELECT * INTO #temp_signoffPAQ FROM [10.183.0.94].NGProd.dbo.paq_signoff_history   h
---WHERE  h.item_id NOT IN(SELECT DISTINCT p.[Item ID]  FROM #temp_active_paq p) --bring all the signoff PAQ even if they are still active
+--WHERE  h.item_id NOT IN(SELECT DISTINCT p.[Item ID]  FROM #active_paq p) --bring all the signoff PAQ even if they are still active
 
 
 --bring all signoff PAQ creation ,modification date 
@@ -741,10 +787,12 @@ SELECT x.*  INTO #data_PAQ
 		  ,NULL
 		  ,NULL
 		  ,abnorm_flags
-	  FROM #temp_active_paq
+	  FROM #active_paq
 	  ) x  ORDER BY x.[create_timestamp]
 		
-
+		--**DQ** Was taking up lots of memory by failing to drop lg temp tables
+		DROP TABLE  #active_paq
+		DROP TABLE  #temp_all_signoffPAQ
 
 ---modify PAQ table
 select q.[item_type]
@@ -811,7 +859,9 @@ select q.[item_type]
 	FROM  #data_PAQ q 
 	left join  [10.183.0.94].NGProd.dbo.user_mstr um  with (nolock)  ON q.created_by = um.user_id 
    
-  
+
+  DROP TABLE #data_PAQ
+
 --create DWH PAQ  table
  SELECT q.[item_type]
       ,q.[item_id]
@@ -853,6 +903,8 @@ select q.[item_type]
 	  LEFT OUTER JOIN dbo.data_user_v2 u WITH(nolock) ON u.user_id=q.signoff_user_id
       LEFT OUTER JOIN dbo.data_provider paq_provider WITH(NOLOCK) ON paq_provider.provider_id = q.provider_id
 	  LEFT OUTER JOIN dbo.data_provider reassigned_paq_provider  WITH(NOLOCK) ON reassigned_paq_provider.provider_id = q.reassigned_provider_id
+
+	  drop TABLE #data_PAQ_final
 
 END
 GO

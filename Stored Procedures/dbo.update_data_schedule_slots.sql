@@ -368,10 +368,10 @@ SET  @dt_end = (SELECT
 
 -- CHECK NEXT DAY AND LOOP FROM START
 
---DROP TABLE dwh.data_schedule_slots
+--DROP TABLE dbo.data_schedule_slots
 /*
    
-        CREATE TABLE dwh.data_schedule_slots
+        CREATE TABLE dbo.data_schedule_slots
             ( 
                schedule_resource_key int NULL ,
                slot_loc_key int NULL,
@@ -396,12 +396,12 @@ SET  @dt_end = (SELECT
 */
 
 		--Clear out any overlapping rows to be recalculated
-        DELETE  FROM dwh.data_schedule_slots
+        DELETE  FROM dbo.data_schedule_slots
         WHERE   appt_date >= @dt_start
                 AND appt_date <= @dt_end;
 
-     --SET IDENTITY_INSERT dwh.data_schedule_slots OFF;
-        INSERT  INTO dwh.data_schedule_slots
+     --SET IDENTITY_INSERT dbo.data_schedule_slots OFF;
+        INSERT  INTO dbo.data_schedule_slots
                 ( schedule_resource_key ,
 				  resource_key,
                   slot_loc_key ,
@@ -442,18 +442,18 @@ SET  @dt_end = (SELECT
                 FROM    #open_appt_slots os;
 
 
-     --   SET IDENTITY_INSERT dwh.data_schedule_slots OFF;
-        UPDATE  dwh.data_schedule_slots
+     --   SET IDENTITY_INSERT dbo.data_schedule_slots OFF;
+        UPDATE  dbo.data_schedule_slots
         SET     schedule_resource_key = ( SELECT TOP 1
                                                     user_key
-                                          FROM      dwh.data_user du
+                                          FROM      dbo.data_user du
                                           WHERE     du.resource_id = os.resource_id
                                                     AND du.[unique_resource_id_flag] = 1
                                                     AND os.resource_id IS NOT NULL
                                           ORDER BY  du.unique_resource_id_flag ASC ,
                                                     du.unique_provider_id_flag ASC
                                         ) ,
-                   resource_key = (SELECT TOP 1 resource_key FROM dwh.data_resource dr
+                   resource_key = (SELECT TOP 1 resource_key FROM dbo.data_resource dr
 				                     WHERE dr.resource_id=os.resource_id
 									 AND os.resource_id IS NOT null),
 
@@ -462,7 +462,7 @@ SET  @dt_end = (SELECT
 
                 provider_id = ( SELECT TOP 1
                                                     du.provider_id
-                                          FROM      dwh.data_user du
+                                          FROM      dbo.data_user du
                                           WHERE     du.resource_id = os.resource_id
                                                     AND du.[unique_resource_id_flag] = 1
                                                     AND os.resource_id IS NOT NULL
@@ -473,35 +473,35 @@ SET  @dt_end = (SELECT
 
                 slot_loc_key = ( SELECT TOP 1
                                         location_key
-                                 FROM   dwh.data_location dl
+                                 FROM   dbo.data_location dl
                                  WHERE  dl.location_id = os.location_id
                                         AND dl.location_id_unique_flag = 1
                                         AND os.location_id IS NOT NULL
                                ) ,
                 category_key = ( SELECT TOP 1
                                         cat_event_key
-                                 FROM   dwh.data_category_event ce
+                                 FROM   dbo.data_category_event ce
                                  WHERE  ce.category_id = os.category_id
                                         AND os.category_id IS NOT NULL
                                )
-        FROM    dwh.data_schedule_slots os;
+        FROM    dbo.data_schedule_slots os;
                          
 				
 
 
-        ALTER TABLE dwh.data_schedule_slots DROP COLUMN slot_key;
+        ALTER TABLE dbo.data_schedule_slots DROP COLUMN slot_key;
 
 -- add new "RowId" column, make it IDENTITY (= auto-incrementing)
-        ALTER TABLE dwh.data_schedule_slots
+        ALTER TABLE dbo.data_schedule_slots
         ADD slot_key INT NOT NULL IDENTITY(1,1);
 
 ---- add new primary key constraint on new column   
---ALTER TABLE dwh.data_schedule_slots 
+--ALTER TABLE dbo.data_schedule_slots 
 --ADD CONSTRAINT PK_data_schedule_slots 
 --PRIMARY KEY CLUSTERED (slot_key)
 
 
---ALTER TABLE dwh.data_schedule_slots 
+--ALTER TABLE dbo.data_schedule_slots 
 --DROP CONSTRAINT PK_data_schedule_slots 
 
 /*  AUDIT REPORT
@@ -516,8 +516,8 @@ SET  @dt_end = (SELECT
             ss.nbr_slots_open_final ,
             ss.nbr_slots_available ,
             ss.nbr_slots_overbook
-    FROM    dwh.data_schedule_slots ss
-            LEFT JOIN dwh.data_user r ON r.user_key = ss.schedule_resource_key
+    FROM    dbo.data_schedule_slots ss
+            LEFT JOIN dbo.data_user r ON r.user_key = ss.schedule_resource_key
             LEFT JOIN [10.183.0.94].[NGProd].[dbo].categories c ON ss.category_id = c.category_id
     WHERE   ss.slot_loc_key = 37
             AND appt_date = '20151201'
