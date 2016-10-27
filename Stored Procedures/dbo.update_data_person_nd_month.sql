@@ -80,7 +80,7 @@ BEGIN
         --Temp table is created in a separate statement to account for the later addition of ECW fields
         --Even UNIQUEIDENTIFIER is NULL because ECW does not use this data type
         CREATE TABLE #person_patient(
-            [person_id] UNIQUEIDENTIFIER NULL,
+            [person_id] UNIQUEIDENTIFIER,
 			--Used in future procedures instead of person_id/person_id_ecw. Windowing functions where having issues with null values in id columns
 			--Acts as a unique identifier for all patients
 			[person_key] INT IDENTITY(1,1), 
@@ -299,14 +299,32 @@ BEGIN
 		AND completedDate NOT LIKE ''
 
 
-
+		  
 		SELECT
-			v.person_id, v.BP_date AS date,Value, bp_sys, bp_dia
+			v.person_id,v.encounterID, v.BP_date AS date,Value, bp_sys, bp_dia,sys_u_150,sys_u_140,dia_u_90,
+			CASE
+				WHEN sys_u_140 =1 AND dia_u_90 = 1 THEN 1
+				ELSE 0
+			END
+				AS bp_u_14090,
+			CASE
+				WHEN sys_u_150 =1 AND dia_u_90 = 1 THEN 1
+				ELSE 0
+			END
+				AS bp_u_15090
         INTO #bp_tab
 		FROM dbo.data_vital_signs v
 		WHERE bp_sys=1 OR bp_dia=1
 
+		
 
+
+		SELECT person_id, enc_date, crc_excl_dx, uni_mastec_dx, bi_mastec_dx, diab_dx, preg_esrd_dx
+		INTO #temp_dx
+		FROM dbo.data_dx
+		WHERE crc_excl_dx =1 OR uni_mastec_dx = 1 OR bi_mastec_dx = 1 OR diab_dx = 1 OR preg_esrd_dx = 1
+
+		--END Temp table creation
 
 
         SELECT
@@ -423,31 +441,82 @@ BEGIN
 				AND v.date < DATEADD(MONTH,1,tim.first_mon_date)
 				AND v.bp_sys=1
 				ORDER BY v.date DESC)
+
 					AS last_bp_sys,
+
 				(SELECT TOP 1 v.Value
 				FROM #bp_tab v
 				WHERE v.person_id=pp.person_id
 				AND v.date < DATEADD(MONTH,1,tim.first_mon_date)
 				AND v.bp_dia=1
 				ORDER BY v.date DESC)
+
 					AS last_bp_dia,
 
 				--HEDIS
+
+				--BP control denom, adults 18-85
+				CASE
+					WHEN DATEDIFF(YY, pp.dob, tim.first_mon_date) > 85
+						OR DATEDIFF(YY, pp.dob, tim.first_mon_date) < 18 
+						--Hedis/UDS exclusionary dx within past 12 months
+						OR (SELECT TOP 1 d.person_id
+							FROM #temp_dx d
+							WHERE d.person_id=pp.person_id
+							AND d.enc_date < DATEADD(MONTH,1,tim.first_mon_date)
+							AND DATEDIFF(MONTH,d.enc_date,tim.first_mon_date) <= 11
+							AND d.preg_esrd_dx = 1 ) IS NOT NULL THEN 0
+					ELSE 1
+                END
+					AS hedis_bp_denom,
+
+				CASE
+					WHEN DATEDIFF(yy,pp.dob,tim.first_mon_date) >= 60 THEN 1
+					ELSE 0
+				END
+					AS hedis_bp_o60,
+
+
 				--CRC Denominator, adults 50-75
 				CASE
 					WHEN DATEDIFF(YY, pp.dob, tim.first_mon_date) > 75
-						OR DATEDIFF(YY, pp.dob, tim.first_mon_date) < 50 THEN 0
+						OR DATEDIFF(YY, pp.dob, tim.first_mon_date) < 50 
+
+						--Hedis CRC exclusionary diagnosis within past 12 months
+						OR (SELECT TOP 1 d.person_id
+							FROM #temp_dx d
+							WHERE pp.person_id=d.person_id
+							AND d.enc_date < DATEADD(MONTH,1,tim.first_mon_date)
+							AND d.crc_excl_dx = 1) IS NOT NULL THEN 0
 					ELSE 1
                 END
 					AS hedis_crc_denom,
-				--Breast cancer denominator, women age 50-74
+
+				--Breast cancer denominator, women age 50 -74
 				CASE
-					WHEN pp.sex ='M'
+					WHEN pp.sex ='M'--Males excluded
 						OR DATEDIFF(YY, pp.dob, tim.first_mon_date) > 74
-						OR DATEDIFF(YY, pp.dob, tim.first_mon_date) < 50 THEN 0
+						OR DATEDIFF(YY, pp.dob, tim.first_mon_date) < 50
+						--Breast Cancer measure exlusions
+						--Bilateral Mastectomy excludes from denominator
+						OR (SELECT TOP 1 d.person_id
+							FROM #temp_dx d
+							WHERE pp.person_id=d.person_id
+							AND d.enc_date < DATEADD(MONTH,1,tim.first_mon_date)
+							AND d.bi_mastec_dx=1) IS NOT NULL
+						--Two unilateral mastectomies exclude from denominator
+						OR (SELECT SUM(d.uni_mastec_dx)
+							FROM #temp_dx d 
+							WHERE d.person_id=pp.person_id
+							AND d.enc_date < DATEADD(MONTH,1,tim.first_mon_date)
+							AND uni_mastec_dx=1) >= 2								
+							THEN 0
+
 					ELSE 1
 				END
 					AS hedis_bc_denom,
+
+				--**Last exam dates**
 				--last colonoscopy for patient over 50
 				CASE
 					WHEN DATEDIFF(YY, pp.dob, tim.first_mon_date) < 50 THEN NULL
@@ -458,7 +527,8 @@ BEGIN
 						ORDER BY c.date DESC)
 				END
 					AS hedis_last_colon,
-				--last sigmoidoscopy for patien over 50
+
+				--last sigmoidoscopy for patient over 50
 				CASE
 					WHEN DATEDIFF(YY, pp.dob, tim.first_mon_date) < 50 THEN NULL
                     ELSE (SELECT TOP 1 s.date 
@@ -468,6 +538,7 @@ BEGIN
 						ORDER BY s.date DESC)
 				END
 					AS hedis_last_sigmoid,
+
 				--Last fit test for patient over 50
 				CASE
 					WHEN DATEDIFF(YY, pp.dob, tim.first_mon_date) < 50 THEN NULL
@@ -511,11 +582,14 @@ BEGIN
 									
                            ) tim WHERE tim.first_mon_date >= DATEADD(MONTH, DATEDIFF(MONTH, 0, pp.person_create_date), 0);
 
+
 		--Drop temp tables to conserve memory
 		DROP TABLE #colon
 		DROP TABLE #mammo
 		DROP TABLE #fit
 		DROP TABLE #sigmoid
+		--#temp_dx and #temp_bp are used later
+
 
         SELECT  mh.person_id ,
                 mh.mh_changed_from_name ,
@@ -904,12 +978,59 @@ BEGIN
 				nr.person_create_user,
 				nr.last_bp_sys,
 				nr.last_bp_dia,
+				nr.hedis_bp_denom,
 				nr.hedis_crc_denom,
 				nr.hedis_bc_denom,
 				nr.hedis_last_colon,
 				nr.hedis_last_sigmoid,
 				nr.hedis_last_fit,
 				nr.hedis_last_mammo,
+
+				--**Hedis UDS **
+
+				--Hedis bp control numerator
+				CASE
+					WHEN nr.hedis_bp_denom = 0 THEN 0
+					--Patients in denominator under 60
+					WHEN  nr.hedis_bp_o60 = 0
+						  AND (SELECT TOP 1 bp.bp_u_14090
+								FROM #bp_tab bp
+								WHERE bp.person_id=nr.person_id
+								AND bp.date < DATEADD(MONTH,1,nr.first_mon_date)
+								ORDER BY bp.date desc ) = 1
+						  THEN 1
+					--Patients in denominator who are 60+ with a dx of diabetes in past year
+					WHEN  nr.hedis_bp_o60 = 1
+						  AND (SELECT TOP 1 d.person_id
+								FROM #temp_dx d
+								WHERE d.person_id=nr.person_id
+								AND d.enc_date < DATEADD(MONTH,1,nr.first_mon_date)
+								AND DATEDIFF(MONTH,d.enc_date,nr.first_mon_date) <= 11
+								AND d.diab_dx = 1 ) IS NOT NULL
+						  AND (SELECT TOP 1 bp.bp_u_14090
+								FROM #bp_tab bp
+								WHERE bp.person_id=nr.person_id
+								AND bp.date < DATEADD(MONTH,1,nr.first_mon_date)
+								ORDER BY bp.date desc ) = 1
+						  THEN 1
+					--Patients in denominator who are 60+ without a dx of diabetes in past year
+					WHEN  nr.hedis_bp_o60 = 1
+						  AND (SELECT TOP 1 d.person_id
+								FROM #temp_dx d
+								WHERE d.person_id=nr.person_id
+								AND d.enc_date < DATEADD(MONTH,1,nr.first_mon_date)
+								AND DATEDIFF(MONTH,d.enc_date,nr.first_mon_date) <= 11
+								AND d.diab_dx = 1 ) IS NULL
+						  AND (SELECT TOP 1 bp.bp_u_15090
+								FROM #bp_tab bp
+								WHERE bp.person_id=nr.person_id
+								AND bp.date < DATEADD(MONTH,1,nr.first_mon_date)
+								ORDER BY bp.date desc ) = 1
+						  THEN 1
+					ELSE 0
+				END
+					AS hedis_bp_num,
+
 				CASE
 					WHEN nr.hedis_crc_denom = 0 THEN 0
 					--**DQ** 10 years or 119 months? 5 years or 59 months?Does first_mon_date throw it off?
@@ -919,12 +1040,14 @@ BEGIN
 					ELSE 0
 				END
 					AS hedis_crc_num,
+
 				CASE
 					WHEN nr.hedis_bc_denom = 0 THEN 0
 					WHEN DATEDIFF(MONTH,nr.hedis_last_mammo,nr.first_mon_date) <= 23 THEN 1
 					ELSE 0
 				END
 					AS hedis_bc_num
+
         INTO    dbo.data_person_nd_month
         FROM    #ND_roll_up nr
                 LEFT JOIN #Hx_med_home_process hx_mh ON hx_mh.person_id = nr.person_id

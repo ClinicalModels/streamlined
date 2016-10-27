@@ -248,92 +248,92 @@ link between appts and slots based on
                 WHERE   a.appt_date >= @dt_start;
 
 
-  ----This insert adds past encounters not linked to an appointment
-  --      INSERT  INTO #appt_enc
-  --              ( appt_date ,
-  --                slot_time ,
-  --                appt_type ,
-  --                resource_id ,
-  --                appt_loc_id ,
-  --                appt_person_id ,
-  --                enc_person_id ,
-		--		  person_key,
-  --                enc_id ,
-  --                enc_nbr ,
-  --                enc_slot_type ,
-  --                appt_nbr ,
-  --                interval ,
-  --                duration ,
-  --                slot_count ,
-  --                enc_loc_id ,
-  --                enc_date ,
-  --                enc_rendering_id ,
-  --                appt_status ,
-  --                appt_kept_ind ,
-  --                cancel_ind ,
-  --                cancel_reason ,
-  --                delete_ind ,
-  --                resched_ind ,
-  --                checkin_datetime ,
-  --                enc_status ,
-  --                user_enc_created ,
-  --                pcp_id ,
-  --                billable_ind ,
-  --                event_id ,
-  --                event_name ,
-  --                appt_create_time ,
-  --                appt_modify_time ,
-  --                user_appt_created ,
-  --                d.ng_data
-  --              )
+  --This insert adds past encounters not linked to an appointment
+        INSERT  INTO #appt_enc
+                ( appt_date ,
+                  slot_time ,
+                  appt_type ,
+                  resource_id ,
+                  appt_loc_id ,
+                  appt_person_id ,
+                  enc_person_id ,
+				  person_key,
+                  enc_id ,
+                  enc_nbr ,
+                  enc_slot_type ,
+                  appt_nbr ,
+                  interval ,
+                  duration ,
+                  slot_count ,
+                  enc_loc_id ,
+                  enc_date ,
+                  enc_rendering_id ,
+                  appt_status ,
+                  appt_kept_ind ,
+                  cancel_ind ,
+                  cancel_reason ,
+                  delete_ind ,
+                  resched_ind ,
+                  checkin_datetime ,
+                  enc_status ,
+                  user_enc_created ,
+                  pcp_id ,
+                  billable_ind ,
+                  event_id ,
+                  event_name ,
+                  appt_create_time ,
+                  appt_modify_time ,
+                  user_appt_created ,
+                  d.ng_data
+                )
 
-  --             --**DQ** This section of the procedure began running endlessly or taking 8 hours
+               --**DQ** This section of the procedure began running endlessly or taking 8 hours
 				--There is a bug in SQL server 2012 for linked servers that requires CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) as workaround for NULL as uniqueindetifier
-  --             --See this post http://sqlwithmanoj.com/2015/03/27/sqlncli11-for-linked-server-xyz-returned-message-requested-conversion-is-not-supported-sql-server-2012-upgrade-behavior-changes/
-  --              SELECT  
-  --                      CAST(NULL AS DATE) AS appt_date ,
-  --                      CAST(NULL AS CHAR(4)) AS slot_time ,
-  --                      CAST(NULL AS CHAR(1)) AS appt_type ,
-  --                      CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS resource_id ,
-  --                      CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_loc_id ,
-  --                      CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_person_id ,
-  --                      CAST(enc.person_id AS UNIQUEIDENTIFIER) AS enc_person_id ,
-		--				(SELECT TOP 1 nd.person_key
-		--					FROM dbo.data_person_nd_month nd
-		--					WHERE nd.person_id=per.person_Id)
-		--				AS person_key,
-  --                      CAST(enc.enc_id AS UNIQUEIDENTIFIER) AS enc_id ,
-  --                      CAST(enc.enc_nbr AS NUMERIC(12, 0)) AS enc_nbr ,
-  --                      CAST('Encounter no appt' AS VARCHAR(20)) AS enc_slot_type ,
-  --                      CAST(NULL AS NUMERIC(12, 0)) AS appt_nbr ,
-  --                      CAST(NULL AS INT) AS interval ,
-  --                      CAST(NULL AS INT) AS duration ,
-  --                      CAST(NULL AS INT) AS slot_count ,
-  --                      CAST(enc.location_id AS UNIQUEIDENTIFIER) AS enc_loc_id ,
-  --                      CAST(enc.billable_timestamp AS DATE) AS enc_date ,
-  --                      CAST(enc.rendering_provider_id AS UNIQUEIDENTIFIER) AS enc_rendering_id ,
-  --                      CAST (NULL AS CHAR(1)) AS appt_status ,
-  --                      CAST (NULL AS CHAR(1)) AS appt_kept_ind ,
-  --                      CAST (NULL AS CHAR(1)) AS cancel_ind ,
-  --                      CAST (NULL AS CHAR(1)) AS delete_ind ,
-  --                      CAST(a.cancel_reason AS UNIQUEIDENTIFIER) AS cancel_reason ,
-  --                      CAST (NULL AS CHAR(1)) AS resched_ind ,
-  --                      CAST(enc.checkin_datetime AS DATETIME) AS checkin_datetime ,
-  --                      CAST(enc.enc_status AS CHAR(1)) AS enc_status ,
-  --                      CAST(enc.created_by AS INT) AS user_enc_created ,
-  --                      CAST(per.primarycare_prov_id AS UNIQUEIDENTIFIER) AS pcp_id ,
-  --                      CAST(enc.billable_ind AS CHAR(1)) AS billable_ind ,
-  --                      CAST(a.event_id AS UNIQUEIDENTIFIER) AS event_id ,
-  --                      CAST(NULL AS VARCHAR(30)) AS event_name ,
-  --                      CAST(NULL AS DATETIME) AS appt_create_time ,
-  --                      CAST(NULL AS DATETIME) AS appt_modify_time ,
-  --                      CAST(NULL AS INT) AS user_appt_created,
-  --                      1 AS ng_data
-  --              FROM    [10.183.0.94].NGProd.dbo.patient_encounter enc
-  --                      LEFT JOIN [10.183.0.94].NGProd.dbo.appointments a ON enc.enc_id = a.enc_id
-  --                      LEFT JOIN [10.183.0.94].NGProd.dbo.person per ON per.person_id = enc.person_id
-  --              WHERE   a.enc_id IS NULL
-  --                      AND CONVERT(CHAR(8), enc.billable_timestamp, 112) >= @dt_start;
+               --See this post http://sqlwithmanoj.com/2015/03/27/sqlncli11-for-linked-server-xyz-returned-message-requested-conversion-is-not-supported-sql-server-2012-upgrade-behavior-changes/
+                SELECT  
+                        CAST(NULL AS DATE) AS appt_date ,
+                        CAST(NULL AS CHAR(4)) AS slot_time ,
+                        CAST(NULL AS CHAR(1)) AS appt_type ,
+                        CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS resource_id ,
+                        CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_loc_id ,
+                        CAST(CAST(0 AS BINARY) AS UNIQUEIDENTIFIER) AS appt_person_id ,
+                        CAST(enc.person_id AS UNIQUEIDENTIFIER) AS enc_person_id ,
+						(SELECT TOP 1 nd.person_key
+							FROM dbo.data_person_nd_month nd
+							WHERE nd.person_id=per.person_Id)
+						AS person_key,
+                        CAST(enc.enc_id AS UNIQUEIDENTIFIER) AS enc_id ,
+                        CAST(enc.enc_nbr AS NUMERIC(12, 0)) AS enc_nbr ,
+                        CAST('Encounter no appt' AS VARCHAR(20)) AS enc_slot_type ,
+                        CAST(NULL AS NUMERIC(12, 0)) AS appt_nbr ,
+                        CAST(NULL AS INT) AS interval ,
+                        CAST(NULL AS INT) AS duration ,
+                        CAST(NULL AS INT) AS slot_count ,
+                        CAST(enc.location_id AS UNIQUEIDENTIFIER) AS enc_loc_id ,
+                        CAST(enc.billable_timestamp AS DATE) AS enc_date ,
+                        CAST(enc.rendering_provider_id AS UNIQUEIDENTIFIER) AS enc_rendering_id ,
+                        CAST (NULL AS CHAR(1)) AS appt_status ,
+                        CAST (NULL AS CHAR(1)) AS appt_kept_ind ,
+                        CAST (NULL AS CHAR(1)) AS cancel_ind ,
+                        CAST (NULL AS CHAR(1)) AS delete_ind ,
+                        CAST(a.cancel_reason AS UNIQUEIDENTIFIER) AS cancel_reason ,
+                        CAST (NULL AS CHAR(1)) AS resched_ind ,
+                        CAST(enc.checkin_datetime AS DATETIME) AS checkin_datetime ,
+                        CAST(enc.enc_status AS CHAR(1)) AS enc_status ,
+                        CAST(enc.created_by AS INT) AS user_enc_created ,
+                        CAST(per.primarycare_prov_id AS UNIQUEIDENTIFIER) AS pcp_id ,
+                        CAST(enc.billable_ind AS CHAR(1)) AS billable_ind ,
+                        CAST(a.event_id AS UNIQUEIDENTIFIER) AS event_id ,
+                        CAST(NULL AS VARCHAR(30)) AS event_name ,
+                        CAST(NULL AS DATETIME) AS appt_create_time ,
+                        CAST(NULL AS DATETIME) AS appt_modify_time ,
+                        CAST(NULL AS INT) AS user_appt_created,
+                        1 AS ng_data
+                FROM    [10.183.0.94].NGProd.dbo.patient_encounter enc
+                        LEFT JOIN [10.183.0.94].NGProd.dbo.appointments a ON enc.enc_id = a.enc_id
+                        LEFT JOIN [10.183.0.94].NGProd.dbo.person per ON per.person_id = enc.person_id
+                WHERE   a.enc_id IS NULL
+                        AND CONVERT(CHAR(8), enc.billable_timestamp, 112) >= @dt_start;
 
 
 
@@ -807,7 +807,6 @@ flag, and pull from a different location depending on if flag is NextGen (1)
 
                 --Here we are counting how many of all appoints regardless of their status as cancelled our rescheduled were booked with the PCP
                 CASE
-                    WHEN d.ng_data = 0 THEN d.status_appt_pcp --If ECW appointment, take the status directly
                     WHEN ( d.appt_nbr IS NOT NULL
                             AND d.pcp_id IS NOT NULL
                             AND d.enc_rendering_id IS NOT NULL
@@ -835,26 +834,15 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 END
                     AS appt_w_pcp_status_txt ,
                 CASE
-                    WHEN d.ng_data = 0
-                        AND d.status_appt_pcp LIKE 'Appointment booked with PCP' THEN 1 --Count ECW pcp encounters
-                    WHEN d.ng_data = 0
-                        AND d.status_appt_pcp LIKE 'Appointment not booked with PCP' THEN 0
-                    WHEN ( d.ng_data = 1
-                        AND d.appt_nbr IS NOT NULL
+                    WHEN d.appt_nbr IS NOT NULL
                             AND d.pcp_id IS NOT NULL
                             AND d.enc_rendering_id IS NOT NULL
-                            AND d.pcp_id = d.enc_rendering_id
-                          ) THEN 1
+                            AND d.pcp_id = d.enc_rendering_id THEN 1
                      ELSE 0
                 END
                     AS nbr_pcp_appts ,
                 CASE
-                    WHEN d.ng_data = 0
-                        AND d.status_appt_pcp LIKE 'Appointment not booked with PCP' THEN 1
-                    WHEN d.ng_data = 0
-                        AND d.status_appt_pcp LIKE 'Appointment booked with PCP' THEN 0
-                    WHEN d.ng_data = 1
-                            AND d.appt_nbr IS NOT NULL
+                    WHEN d.appt_nbr IS NOT NULL
                             AND d.pcp_id IS NOT NULL
                             AND d.enc_rendering_id IS NOT NULL
                             AND d.pcp_id = d.enc_rendering_id THEN 0
@@ -862,7 +850,6 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 END
                     AS nbr_nonpcp_appt ,
                 CASE
-                    WHEN (d.ng_data = 0) THEN 1
                     WHEN ( d.appt_nbr IS NOT NULL ) THEN 1
                      ELSE 0
                 END
@@ -874,9 +861,7 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 CASE
                     WHEN ( d.appt_nbr IS NOT NULL
                             AND d.appt_person_id IS NULL
-                            AND d.ng_data = 1
                           ) THEN 1
-                     WHEN d.ng_data = 0 THEN 0
                      ELSE 0
                 END AS nbr_appt_notlinked_toperson ,
 
@@ -886,11 +871,9 @@ flag, and pull from a different location depending on if flag is NextGen (1)
 
                 --This is the number of appointments that have a linked encounter that were kept (or checked in)
                 CASE
-                    WHEN d.ng_data = 0 and d.appt_kept_ind = 'Y' THEN 1
                     WHEN ISNULL(d.appt_kept_ind, 'N') = 'Y'
                           AND ISNULL(d.resched_ind, 'N') != 'Y' -- This is checking for reschedules The D are reschedules, Could have also checked resched_ind != 'Y'
-                          AND d.enc_id IS NOT NULL
-                          AND d.ng_data =1 THEN 1
+                          AND d.enc_id IS NOT NULL THEN 1
                     ELSE 0
                 END
                     AS nbr_appt_kept_and_linked_enc ,
@@ -898,7 +881,6 @@ flag, and pull from a different location depending on if flag is NextGen (1)
 
                 --I think of this as a data quality audit
                 CASE
-                    WHEN d.ng_data = 0 THEN 0
                     WHEN ISNULL(d.appt_kept_ind, 'N') = 'Y'
                           AND ISNULL(resched_ind, 'N') != 'Y'
                           AND d.enc_id IS NULL THEN 1
@@ -918,7 +900,6 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 END
                     AS nbr_appt_future ,
                 CASE
-                    WHEN d.ng_data = 0 AND d.noshow_ind = 'Y' THEN 1
                     WHEN d.appt_date < CONVERT(CHAR(8), GETDATE(), 112)
                          -- AND d.enc_nbr IS NOT NULL
                           AND ISNULL(d.appt_kept_ind, 'N') = 'N'
@@ -930,7 +911,6 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 END
                     AS nbr_appt_no_show ,
                 CASE
-                    WHEN d.ng_data = 0 THEN 0 
                     WHEN d.appt_date >= CONVERT(CHAR(8), GETDATE(), 112)
                           AND d.appt_person_id IS NULL
                           AND ISNULL(d.appt_kept_ind, 'N') = 'N'
@@ -941,7 +921,6 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 END
                     AS nbr_appt_future_no_patient ,
                 CASE
-                    WHEN d.ng_data = 0 THEN 0
                     WHEN d.appt_date < CONVERT(CHAR(8), GETDATE(), 112)
                           AND d.appt_person_id IS NULL
                           AND ISNULL(d.appt_kept_ind, 'N') = 'N'
@@ -972,58 +951,42 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 --This is billable encounters of for patients
                 --Here is a concern that popped up in the
                 CASE
-                    WHEN d.ng_data = 0 and d.appt_kept_ind = 'Y' THEN 1
-                    WHEN d.enc_id IS NOT NULL
-                        AND d.ng_data = 1 THEN 1
+                    WHEN d.enc_id IS NOT NULL THEN 1
                     ELSE 0
                 END
                     AS nbr_enc ,
                 CASE
-                    WHEN d.ng_data = 0 and d.billable_ind = 'Y' THEN 1
                     WHEN ISNULL(d.billable_ind, 'N') = 'Y'
-                          AND d.enc_id IS NOT NULL
-                        AND d.ng_data = 1 THEN 1
+                          AND d.enc_id IS NOT NULL  THEN 1
                     ELSE 0
                 END
                     AS nbr_bill_enc ,
                 CASE
-                    WHEN d.ng_data = 0 THEN 1
-                    WHEN d.ng_data = 1
-                        AND d.enc_id IS NOT NULL
+                    WHEN d.enc_id IS NOT NULL
                         OR d.appt_nbr IS NOT NULL THEN 1
                      ELSE 0
                 END
                     AS nbr_enc_or_appt ,
                 CASE
-                    WHEN d.ng_data = 0
-                        and d.billable_ind = 'N'
-                        and d.appt_kept_ind = 'Y' THEN 1
                     WHEN ISNULL(d.billable_ind, 'N') != 'Y'
-                          AND d.enc_id IS NOT NULL
-                          AND d.ng_data = 1 THEN 1
+                          AND d.enc_id IS NOT NULL THEN 1
                      ELSE 0
                 END
                     AS nbr_non_bill_enc ,
                 CASE
-                    WHEN d.ng_data = 0
-                         and d.billable_ind = 'Y' THEN 1
                     WHEN ISNULL(d.billable_ind, 'N') = 'Y'
-                         AND d.appt_nbr IS NOT NULL
-                         AND d.ng_data = 1 THEN 1
+                         AND d.appt_nbr IS NOT NULL  THEN 1
                     ELSE 0
                 END
                     AS nbr_bill_enc_with_an_appt ,
                 CASE
-                    WHEN d.ng_data = 0
-                        AND d.billable_ind = 'N'
-                        AND d.appt_kept_ind = 'Y' THEN 1
-                    WHEN
-                        d.ng_data = 1
-                        AND ISNULL(d.billable_ind, 'N') != 'Y'
+                    WHEN ISNULL(d.billable_ind, 'N') != 'Y'
                         AND d.appt_nbr IS NOT NULL THEN 1
                     ELSE 0
                 END
                     AS nbr_non_bill_enc_with_an_appt ,
+
+				--**DQ** billable criteria for unduplicated
 				CASE 
 					WHEN d.unduplicated_annually = 1
 						AND d.billable_event = 1 THEN 1
@@ -1036,11 +999,7 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                 so appt_nbr is not evaluated for ECW data
                 */
                 CASE
-                    WHEN d.ng_data = 0
-                        AND d.billable_ind = 'Y'
-                        AND d.appt_kept_ind = 'Y' THEN 1
-                    WHEN  d.ng_data = 1
-                        AND ISNULL(d.billable_ind, 'N') = 'Y'
+                    WHEN ISNULL(d.billable_ind, 'N') = 'Y'
                         AND ISNULL (d.appt_kept_ind, 'N') = 'Y'
                         AND d.appt_nbr IS NOT NULL THEN 1
                     ELSE 0
@@ -1048,11 +1007,7 @@ flag, and pull from a different location depending on if flag is NextGen (1)
                     AS nbr_bill_enc_with_an_appt_and_kept,
 
                 CASE
-                    WHEN d.ng_data = 0
-                        AND d.billable_ind = 'N'
-                        and d.appt_kept_ind = 'Y' THEN 1
-                    WHEN d.ng_data = 1
-                        AND ISNULL(d.billable_ind, 'N') != 'Y'
+                    WHEN ISNULL(d.billable_ind, 'N') != 'Y'
                           AND ISNULL(d.appt_kept_ind, 'N') = 'Y'
                           AND d.appt_nbr IS NOT NULL THEN 1
                      ELSE 0
@@ -1210,8 +1165,8 @@ from dbo.data_appointment el
 	
   
    
-
-
+   --Add column to dx table so it can be updated with enc_appt_key in next step
+   ALTER TABLE dbo.data_dx ADD enc_appt_key INT NULL
 
 
 

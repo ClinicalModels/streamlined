@@ -49,12 +49,14 @@ CREATE TABLE [dbo].[data_person_nd_month]
 [person_create_user] [varchar] (92) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 [last_bp_sys] [numeric] (18, 0) NULL,
 [last_bp_dia] [numeric] (18, 0) NULL,
+[hedis_bp_denom] [int] NOT NULL,
 [hedis_crc_denom] [int] NOT NULL,
 [hedis_bc_denom] [int] NOT NULL,
 [hedis_last_colon] [date] NULL,
 [hedis_last_sigmoid] [date] NULL,
 [hedis_last_fit] [date] NULL,
 [hedis_last_mammo] [date] NULL,
+[hedis_bp_num] [int] NOT NULL,
 [hedis_crc_num] [int] NOT NULL,
 [hedis_bc_num] [int] NOT NULL
 ) ON [PRIMARY]

@@ -35,14 +35,13 @@ BEGIN
 
 
 
---Grab any orders modified within the past day
+--Grab any Orders modified within the past day AND their attached results
 SELECT 
 	   
-       app.enc_appt_key,
-       per.per_mon_id,
-	   per.person_key,
 	   --Bringing in keys, names, and also IDs
 	   --IDs are to be used for updating the keys daily once this 
+	   ord.person_id,
+	   ord.enc_id,
 	   prov.provider_key AS ordering_prov_key,
 	   ord.ordering_provider AS ordering_prov_id,
 	   prov.FullName AS ordering_provider_name,
@@ -155,14 +154,12 @@ SELECT
   FROM [10.183.0.94] .[NGProd]. [dbo].[lab_nor] ord 
   LEFT JOIN [10.183.0.94] .[NGProd].[dbo].[lab_results_obr_p] p WITH(NOLOCK) ON ord.order_num=p.ngn_order_num
   LEFT JOIN [10.183.0.94] .[NGProd]. [dbo].lab_results_obx res WITH(NOLOCK) ON p.unique_obr_num=res.unique_obr_num --bridge lab table 
-  LEFT JOIN dbo. data_appointment app  ON ord.enc_id = app.enc_id
-  LEFT JOIN dbo.data_person_nd_month per ON (ord.person_id = per.person_id AND per.first_mon_date=CAST(CONVERT(CHAR(6),ord.create_timestamp,112)+'01' AS date))
   LEFT JOIN dbo.data_provider prov ON prov.provider_id=ord.ordering_provider
   LEFT JOIN dbo.data_user_v2 creat   ON creat.user_id=ord.created_by
   LEFT JOIN dbo.data_user_v2 mod  ON mod.user_id=ord.modified_by
   WHERE res.modify_timestamp >= (GETDATE() - 1) --Pull only Results or Orders modified within the last 24 hours
   OR ord.modify_timestamp >= (GETDATE() - 1)
-  AND (res.observ_value NOT LIKE '%PENDING%') --somehow final table has pending result values 
+  --AND (res.observ_value NOT LIKE '%PENDING%') --somehow final table has pending result values 
 
 
 
@@ -234,7 +231,7 @@ SELECT
 	END
 		AS lab_result_dx,
 	CASE 
-		WHEN res.obs_id IS NOT NULL THEN ROW_NUMBER() OVER ( PARTITION BY res.person_key, res.obs_id ORDER BY res.result_date DESC ) 
+		WHEN res.obs_id IS NOT NULL THEN ROW_NUMBER() OVER ( PARTITION BY res.person_id, res.obs_id ORDER BY res.result_date DESC ) 
 		ELSE NULL
 	END
 		AS Recency,
@@ -289,9 +286,6 @@ SELECT
  --Insert all the updated rows into the dwh table
  INSERT INTO dbo.data_labs
          ( lab_ord_key,
-           enc_appt_key ,
-           per_mon_id ,
-           person_key ,
            ordering_prov_key ,
            ordering_prov_id ,
            ordering_provider_name ,
@@ -372,9 +366,6 @@ SELECT
          )
 SELECT
 		lab_order_key,
-		 enc_appt_key ,
-          per_mon_id ,
-          person_key ,
           ordering_prov_key ,
           ordering_prov_id ,
           ordering_provider_name ,
@@ -467,9 +458,6 @@ FROM dbo.data_labs
 UPDATE lab 
 	SET 
 		lab.lab_ord_key = r.order_key_new, --Orders wil be updated with a new unique order key
-		lab.enc_appt_key = app.enc_appt_key,
-       lab.per_mon_id=per.per_mon_id,
-	   lab.person_key =per.person_key,
 	   lab.ordering_prov_key = prov.provider_key ,
 	   lab.ordering_provider_name=prov.FullName,
 	   lab.create_user_key=creat.user_key,

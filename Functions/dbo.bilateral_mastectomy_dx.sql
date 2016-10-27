@@ -7,17 +7,14 @@ GO
 -- Create date: <Create Date, ,>
 -- Description:	Returns 1 if ICD code is an exclusionary dx for hedis crc scoring
 -- =============================================
-CREATE FUNCTION [dbo].[exclude_dx_hedis_crc](@dx VARCHAR(10))  
+CREATE FUNCTION [dbo].[bilateral_mastectomy_dx](@dx VARCHAR(10))  
 RETURNS int   
 AS   
 
 BEGIN  
     DECLARE @ret int;  
-    SELECT @ret = CASE          --Codes for colon cancer
-					WHEN @dx IN('C18.%','C19.%','C20.%','C21.8','Z85.038','Z85.048'
-								--Codes for Colectomy --V45.89, Z98.89
-								--,'Z90.49'
-								) 
+    SELECT @ret = CASE          --Codes for bilateral mastectomoy. As unilateral is calculated separately
+					WHEN @dx IN('85.42','85.44','85.46','85.48') 
 								THEN 1
 					ELSE 0
 				  END 

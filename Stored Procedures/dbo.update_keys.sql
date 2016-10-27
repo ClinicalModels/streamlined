@@ -7,13 +7,22 @@ GO
 -- Create date: <Create Date,,>
 -- Description:	<Description,,>
 -- =============================================
-CREATE PROCEDURE [dbo].[run_nd_prod]
+CREATE PROCEDURE [dbo].[update_keys]
 AS
 BEGIN
 	-- SET NOCOUNT ON added to prevent extra result sets from
 	-- interfering with SELECT statements.
 	SET NOCOUNT ON;
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
 
-    exec [sqlprod1\ghost].[vcTest].[dbo].[update_data_person_nd_month]
+	
+
+	UPDATE dx
+		SET
+			dx.enc_appt_key=app.enc_appt_key
+	FROM dbo.data_dx dx
+	LEFT JOIN dbo.data_appointment app ON app.enc_id=dx.enc_id
+
+
 END
 GO

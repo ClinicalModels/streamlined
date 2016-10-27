@@ -42,9 +42,6 @@ see how consistently the codes are used/generated  4/4/16  JTA
 --Pull orders into a temporary table with related keys
 SELECT 
 	   IDENTITY(INT,1,1) AS lab_ord_key,
-       app.enc_appt_key,
-       per.per_mon_id,
-	   per.person_key,
 	   ord.enc_id,
 	   ord.person_id,
 	   loc.location_mstr_name AS appt_location,
@@ -103,8 +100,6 @@ SELECT
 		AS test_ordered
   INTO #temp_ord
   FROM [10.183.0.94] .[NGProd]. [dbo].[lab_nor] ord  --lab_nor table holds all the lab order
-  LEFT JOIN dbo. data_appointment app  ON ord.enc_id = app.enc_id
-  LEFT JOIN dbo.data_person_nd_month per ON (ord.person_id = per.person_id AND per.first_mon_date=CAST(CONVERT(CHAR(6),ord.create_timestamp,112)+'01' AS date))
   LEFT JOIN dbo.data_provider prov ON prov.provider_id=ord.ordering_provider
   LEFT JOIN dbo.data_user_v2 creat   ON creat.user_id=ord.created_by
   LEFT JOIN dbo.data_user_v2 mod  ON mod.user_id=ord.modified_by
@@ -241,7 +236,7 @@ SELECT
 	END
 		AS pre_diab_flag ,
 	CASE 
-		WHEN res.obs_id IS NOT NULL THEN ROW_NUMBER() OVER ( PARTITION BY res.person_key, res.obs_id ORDER BY res.result_date DESC ) 
+		WHEN res.obs_id IS NOT NULL THEN ROW_NUMBER() OVER ( PARTITION BY res.person_id, res.obs_id ORDER BY res.result_date DESC ) 
 		ELSE NULL
 	END
 		AS Recency,

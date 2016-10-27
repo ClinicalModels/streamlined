@@ -228,6 +228,9 @@ AS
 
 ALTER TABLE dbo.data_vital_signs ADD bp_sys INT NULL
 ALTER TABLE dbo.data_vital_signs ADD bp_dia INT NULL 
+ALTER TABLE dbo.data_vital_signs ADD sys_u_150 int NULL
+ALTER TABLE dbo.data_vital_signs ADD sys_u_140 int NULL
+ALTER TABLE dbo.data_vital_signs ADD dia_u_90 int null
 
 
 UPDATE dbo.data_vital_signs
@@ -241,6 +244,27 @@ UPDATE dbo.data_vital_signs
     SET bp_dia =
 		(CASE
 			WHEN Type LIKE 'Blood Pressure Diastolic' THEN 1
+			ELSE 0
+		END)
+
+UPDATE dbo.data_vital_signs
+	SET sys_u_150 =
+		(CASE
+			WHEN bp_sys=1 AND Value < 150 THEN 1
+			ELSE 0
+		END) 
+
+UPDATE dbo.data_vital_signs
+	SET sys_u_140 =
+		(CASE
+			WHEN bp_sys=1 AND Value < 140 THEN 1
+			ELSE 0
+		END) 
+
+UPDATE dbo.data_vital_signs
+	SET dia_u_90 =
+		(CASE
+			WHEN bp_dia=1 AND Value < 40 THEN 1
 			ELSE 0
 		END)
 

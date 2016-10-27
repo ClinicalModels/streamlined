@@ -18,6 +18,9 @@ CREATE TABLE [dbo].[data_vital_signs]
 [Type] [nvarchar] (128) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 [Value] [numeric] (18, 0) NULL,
 [bp_sys] [int] NULL,
-[bp_dia] [int] NULL
+[bp_dia] [int] NULL,
+[sys_u_150] [int] NULL,
+[sys_u_140] [int] NULL,
+[dia_u_90] [int] NULL
 ) ON [PRIMARY]
 GO

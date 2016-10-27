@@ -2,7 +2,6 @@ CREATE TABLE [dbo].[data_charge]
 (
 [chg_key] [int] NOT NULL IDENTITY(1, 1),
 [enc_id] [uniqueidentifier] NOT NULL,
-[enc_key] [int] NOT NULL,
 [source_id] [uniqueidentifier] NULL,
 [enc_bill_date] [date] NULL,
 [begin_date_of_service] [varchar] (8) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
